@@ -1,0 +1,47 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: projectplanning_cloud_postgres
+    environment:
+      POSTGRES_USER: projectplanning
+      POSTGRES_PASSWORD: projectplanning123
+      POSTGRES_DB: projectplanning_cloud
+    ports:
+      - "5432:5432" # Use different port to avoid conflicts
+    volumes:
+      - postgres_cloud_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U projectplanning"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - projectplanning_network
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: projectplanning_cloud_api
+    environment:
+      DATABASE_URL: postgresql://projectplanning:projectplanning123@postgres:5432/projectplanning_cloud
+      API_V1_PREFIX: /api/v1
+      PROJECT_NAME: ProjectPlanning Cloud Persistence API
+      ALLOWED_ORIGINS: http://localhost:3000,http://localhost:8000
+    ports:
+      - "8001:8000" # Expose on port 8001 (proxy API uses 8000)
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - projectplanning_network
+    restart: unless-stopped
+
+volumes:
+  postgres_cloud_data:
+
+networks:
+  projectplanning_network:
+    driver: bridge
