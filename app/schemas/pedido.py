@@ -35,6 +35,7 @@ class PedidoResponse(BaseModel):
     etapa_id: UUID
     tipo: str
     descripcion: str
+    estado: str
     monto: Optional[float] = None
     moneda: Optional[str] = None
     cantidad: Optional[int] = None

@@ -6,10 +6,11 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.api.deps.auth import get_current_user
 from app.db.session import get_db
+from app.models.user import User
 from app.schemas.proyecto import ProyectoCreate, ProyectoResponse, ProyectoUpdate
+from app.services.proyecto_service import ProyectoService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(get_current_user)])
@@ -23,13 +24,15 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
 async def create_project(
     proyecto_data: ProyectoCreate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ProyectoResponse:
     """
-    Create a new proyecto with nested etapas and pedidos.
+    Crear un nuevo proyecto con etapas y pedidos anidados.
+    El proyecto se asigna automáticamente al usuario autenticado.
     """
     try:
-        logger.info(f"Creating proyecto: {proyecto_data.titulo}")
-        db_proyecto = await crud.proyecto.create_proyecto(db, proyecto_data)
+        logger.info(f"User {current_user.id} creating proyecto: {proyecto_data.titulo}")
+        db_proyecto = await ProyectoService.create(db, proyecto_data, current_user)
         logger.info(f"Successfully created proyecto with ID: {db_proyecto.id}")
         return ProyectoResponse.model_validate(db_proyecto)
 
@@ -53,10 +56,11 @@ async def get_project(
     db: AsyncSession = Depends(get_db),
 ) -> ProyectoResponse:
     """
-    Get a proyecto by ID with all nested data.
+    Obtener un proyecto por ID con todos los datos anidados.
+    Cualquier usuario autenticado puede ver proyectos.
     """
     logger.info(f"Fetching proyecto {project_id}")
-    db_proyecto = await crud.proyecto.get_proyecto(db, project_id)
+    db_proyecto = await ProyectoService.get_by_id(db, project_id)
 
     if not db_proyecto:
         logger.warning(f"Proyecto {project_id} not found")
@@ -73,12 +77,14 @@ async def update_project(
     project_id: UUID,
     update_data: ProyectoUpdate,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ProyectoResponse:
     """
-    Partial update of a proyecto (mainly for Bonita info).
+    Actualización parcial de un proyecto (principalmente para info de Bonita).
+    Solo el dueño del proyecto puede actualizarlo.
     """
-    logger.info(f"Updating proyecto {project_id}")
-    db_proyecto = await crud.proyecto.update_proyecto(db, project_id, update_data)
+    logger.info(f"User {current_user.id} updating proyecto {project_id}")
+    db_proyecto = await ProyectoService.update(db, project_id, update_data, current_user)
 
     if not db_proyecto:
         logger.warning(f"Proyecto {project_id} not found")
@@ -95,13 +101,14 @@ async def update_project(
 async def delete_project(
     project_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> None:
     """
-    Delete a proyecto (cascades to etapas and pedidos).
-    Used by proxy API for rollback when Bonita fails.
+    Eliminar un proyecto (en cascada a etapas y pedidos).
+    Solo el dueño del proyecto puede eliminarlo.
     """
-    logger.info(f"Deleting proyecto {project_id}")
-    deleted = await crud.proyecto.delete_proyecto(db, project_id)
+    logger.info(f"User {current_user.id} deleting proyecto {project_id}")
+    deleted = await ProyectoService.delete(db, project_id, current_user)
 
     if not deleted:
         logger.warning(f"Proyecto {project_id} not found")

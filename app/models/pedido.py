@@ -1,6 +1,6 @@
 """Pedido SQLAlchemy model."""
 
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
 import enum as py_enum
@@ -12,6 +12,7 @@ from app.db.base import Base
 
 if TYPE_CHECKING:
     from app.models.etapa import Etapa
+    from app.models.oferta import Oferta
 
 
 class TipoPedido(str, py_enum.Enum):
@@ -21,6 +22,13 @@ class TipoPedido(str, py_enum.Enum):
     MANO_OBRA = "mano_obra"
     TRANSPORTE = "transporte"
     EQUIPAMIENTO = "equipamiento"
+
+
+class EstadoPedido(str, py_enum.Enum):
+    """Pedido status enumeration."""
+    PENDIENTE = "PENDIENTE"
+    COMPROMETIDO = "COMPROMETIDO"
+    COMPLETADO = "COMPLETADO"
 
 
 class Pedido(Base):
@@ -41,6 +49,9 @@ class Pedido(Base):
     # Pedido Info
     tipo: Mapped[TipoPedido] = mapped_column(Enum(TipoPedido), nullable=False)
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
+    estado: Mapped[EstadoPedido] = mapped_column(
+        Enum(EstadoPedido), nullable=False, default=EstadoPedido.PENDIENTE
+    )
 
     # Financial (for economico type)
     monto: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
@@ -52,3 +63,6 @@ class Pedido(Base):
 
     # Relationships
     etapa: Mapped["Etapa"] = relationship(back_populates="pedidos")
+    ofertas: Mapped[List["Oferta"]] = relationship(
+        back_populates="pedido", cascade="all, delete-orphan"
+    )
