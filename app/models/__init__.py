@@ -2,7 +2,8 @@
 
 from app.models.proyecto import Proyecto, EstadoProyecto
 from app.models.etapa import Etapa
-from app.models.pedido import Pedido, TipoPedido
+from app.models.pedido import Pedido, TipoPedido, EstadoPedido
+from app.models.oferta import Oferta, EstadoOferta
 from app.models.user import User, UserRole
 
 __all__ = [
@@ -11,6 +12,9 @@ __all__ = [
     "Etapa",
     "Pedido",
     "TipoPedido",
+    "EstadoPedido",
+    "Oferta",
+    "EstadoOferta",
     "User",
     "UserRole",
 ]

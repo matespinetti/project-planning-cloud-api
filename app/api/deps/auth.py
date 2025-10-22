@@ -5,9 +5,9 @@ from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.security import decode_access_token
-from app.crud import user as user_crud
 from app.db.session import get_db
 from app.models.user import User, UserRole
+from app.services.user_service import UserService
 
 bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -53,7 +53,7 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = await user_crud.get_user_by_id(db, user_id)
+    user = await UserService.get_by_id(db, user_id)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

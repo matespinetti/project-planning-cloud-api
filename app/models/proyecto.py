@@ -1,16 +1,20 @@
 """Proyecto SQLAlchemy model."""
 
 from datetime import datetime
-from typing import List, Optional
+from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import DateTime, Enum, Integer, String, Text, func
+from sqlalchemy import DateTime, Enum, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 
 import enum as py_enum
+
+if TYPE_CHECKING:
+    from app.models.user import User
+    from app.models.etapa import Etapa
 
 
 class EstadoProyecto(str, py_enum.Enum):
@@ -30,6 +34,11 @@ class Proyecto(Base):
     # Primary Key
     id: Mapped[UUID] = mapped_column(
         PGUUID(as_uuid=True), primary_key=True, default=uuid4
+    )
+
+    # Foreign Key - Project Owner/Creator
+    user_id: Mapped[UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
     )
 
     # Project Info
@@ -66,6 +75,7 @@ class Proyecto(Base):
     )
 
     # Relationships
+    user: Mapped["User"] = relationship(back_populates="proyectos")
     etapas: Mapped[List["Etapa"]] = relationship(
         back_populates="proyecto", cascade="all, delete-orphan", lazy="joined"
     )

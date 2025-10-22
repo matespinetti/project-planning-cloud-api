@@ -18,6 +18,7 @@ from app.models.proyecto import Proyecto
 from app.models.etapa import Etapa
 from app.models.pedido import Pedido
 from app.models.user import User
+from app.models.oferta import Oferta
 
 # Get settings
 settings = get_settings()

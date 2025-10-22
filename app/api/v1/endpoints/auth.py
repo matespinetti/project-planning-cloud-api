@@ -5,7 +5,6 @@ import logging
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app import crud
 from app.core import security
 from app.db.session import get_db
 from app.models.user import User
@@ -16,7 +15,7 @@ from app.schemas.user import (
     UserLogin,
     UserResponse,
 )
-from app.crud.user import UserAlreadyExistsError, InvalidPasswordError
+from app.services.user_service import UserService, UserAlreadyExistsError, InvalidPasswordError
 
 logger = logging.getLogger(__name__)
 
@@ -36,10 +35,10 @@ async def register_user(
     payload: UserCreate,
     db: AsyncSession = Depends(get_db),
 ) -> UserResponse:
-    """Register a new user account."""
+    """Registrar una nueva cuenta de usuario."""
     logger.info("Registering new user with email %s", payload.email)
     try:
-        user = await crud.user.create_user(
+        user = await UserService.create(
             db,
             email=payload.email,
             password=payload.password,
@@ -75,9 +74,9 @@ async def login(
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPair:
-    """Authenticate a user and return JWT tokens."""
+    """Autenticar un usuario y retornar tokens JWT."""
     logger.info("User login attempt for email %s", credentials.email)
-    user = await crud.user.authenticate_user(db, credentials.email, credentials.password)
+    user = await UserService.authenticate(db, credentials.email, credentials.password)
     if not user:
         logger.warning("Invalid credentials for email %s", credentials.email)
         raise HTTPException(
@@ -94,7 +93,7 @@ async def refresh_tokens(
     payload: TokenRefreshRequest,
     db: AsyncSession = Depends(get_db),
 ) -> TokenPair:
-    """Exchange a refresh token for a new token pair."""
+    """Intercambiar un refresh token por un nuevo par de tokens."""
     logger.info("Refreshing access token")
     try:
         token_data = security.decode_refresh_token(payload.refresh_token)
@@ -115,7 +114,7 @@ async def refresh_tokens(
             headers={"WWW-Authenticate": "Bearer"},
         )
 
-    user = await crud.user.get_user_by_id(db, user_id)
+    user = await UserService.get_by_id(db, user_id)
     if not user:
         logger.error("User not found for refresh token subject %s", user_id)
         raise HTTPException(

@@ -10,7 +10,10 @@ from app.schemas.etapa import EtapaCreate, EtapaResponse
 
 
 class ProyectoCreate(BaseModel):
-    """Schema for creating a proyecto (no IDs, server-generated)."""
+    """Schema for creating a proyecto (no IDs, server-generated).
+
+    Note: user_id is automatically set from the authenticated user, not from the request body.
+    """
 
     titulo: str = Field(..., min_length=5, max_length=200)
     descripcion: str = Field(..., min_length=20)
@@ -57,6 +60,7 @@ class ProyectoResponse(BaseModel):
     model_config = {"from_attributes": True}
 
     id: UUID
+    user_id: UUID
     titulo: str
     descripcion: str
     tipo: str
