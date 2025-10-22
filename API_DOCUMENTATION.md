@@ -42,30 +42,27 @@
 
 ## URLs de Servicios
 
-### API Cloud Persistence (Este Servicio)
+### 🌐 API Cloud Persistence (Producción)
 
-#### Desarrollo Local
-- **Base URL:** `http://localhost:8001`
-- **API Base:** `http://localhost:8001/api/v1`
-- **Swagger/Documentación:** `http://localhost:8001/docs`
-- **OpenAPI JSON:** `http://localhost:8001/openapi.json`
+**URL Base:** `https://project-planning-cloud-api.onrender.com`
 
-#### Endpoints Principales
-- **Health Check:** `http://localhost:8001/health`
-- **Root:** `http://localhost:8001/`
+**Acceso Directo:**
+- **API v1:** `https://project-planning-cloud-api.onrender.com/api/v1`
+- **Swagger/Documentación Interactiva:** `https://project-planning-cloud-api.onrender.com/docs`
+- **OpenAPI JSON:** `https://project-planning-cloud-api.onrender.com/openapi.json`
+- **Health Check:** `https://project-planning-cloud-api.onrender.com/health`
 
-### Servicios Relacionados
-- **Proxy API (Orquestación):** `http://localhost:8000`
-- **PostgreSQL:** `localhost:5432` (en Docker) / `localhost:5433` (exposición externa)
+### 📖 Documentación Interactiva
 
-### Documentación Interactiva
+Para explorar y probar todos los endpoints **sin necesidad de instalar nada**:
 
-Para explorar y probar todos los endpoints de forma interactiva:
+👉 **[Abre Swagger UI aquí](https://project-planning-cloud-api.onrender.com/docs)**
 
-1. Inicia el servidor (ver sección "Instrucciones para Pruebas")
-2. Abre en tu navegador: `http://localhost:8001/docs`
-3. Verás la interfaz Swagger UI con todos los endpoints
-4. Puedes probar directamente desde el navegador
+En Swagger UI podrás:
+- Ver todos los endpoints disponibles
+- Probar cada endpoint directamente
+- Obtener automáticamente ejemplos de request/response
+- Ver códigos de error y documentación detallada
 
 ---
 
@@ -216,9 +213,16 @@ Crea una nueva cuenta de usuario en el sistema.
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado - Sin instalación)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/auth/register"
+3. Click "Try it out"
+4. Rellena los campos con los datos del ejemplo
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/register \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "juan.perez@ong.com",
@@ -230,19 +234,12 @@ curl -X POST http://localhost:8001/api/v1/auth/register \
   }'
 ```
 
-**Con Postman:**
+**Opción 3: Postman**
 1. Nueva petición → POST
-2. URL: `http://localhost:8001/api/v1/auth/register`
+2. URL: `https://project-planning-cloud-api.onrender.com/api/v1/auth/register`
 3. Tab "Body" → raw → JSON
 4. Pega el JSON del ejemplo
 5. Click "Send"
-
-**Con Swagger UI:**
-1. Abre `http://localhost:8001/docs`
-2. Busca "POST /api/v1/auth/register"
-3. Click "Try it out"
-4. Rellena los campos
-5. Click "Execute"
 
 ---
 
@@ -297,9 +294,17 @@ Obtiene los tokens JWT para acceder a endpoints protegidos.
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado - Sin instalación)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/auth/login"
+3. Click "Try it out"
+4. Rellena los campos con los datos del ejemplo
+5. Click "Execute"
+6. Copia el `access_token` de la respuesta
+
+**Opción 2: cURL**
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/login \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "juan.perez@ong.com",
@@ -309,7 +314,7 @@ curl -X POST http://localhost:8001/api/v1/auth/login \
 
 **Guardar token en variable (bash):**
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8001/api/v1/auth/login \
+TOKEN=$(curl -s -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{"email":"juan.perez@ong.com","password":"SecurePassword123"}' \
   | jq -r '.access_token')
@@ -548,12 +553,21 @@ Crea un nuevo proyecto con etapas y pedidos anidados en una sola transacción.
 
 #### Instrucciones para Probar
 
-**Con cURL (requiere token):**
+**Opción 1: Swagger UI (Recomendado - Sin instalación)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/projects"
+3. Click "Try it out"
+4. Obtén un token con POST /api/v1/auth/login primero
+5. En el authorization button de arriba, pega: `Bearer {tu_token}`
+6. Completa el JSON con los datos del ejemplo
+7. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
-# Primero haz login para obtener token
+# Primero obtén un token con login
 TOKEN="tu_access_token_aqui"
 
-curl -X POST http://localhost:8001/api/v1/projects \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -584,9 +598,9 @@ curl -X POST http://localhost:8001/api/v1/projects \
   }'
 ```
 
-**Con Postman:**
+**Opción 3: Postman**
 1. Nueva petición → POST
-2. URL: `http://localhost:8001/api/v1/projects`
+2. URL: `https://project-planning-cloud-api.onrender.com/api/v1/projects`
 3. Tab "Authorization" → Type: "Bearer Token" → Token: [pega tu access_token]
 4. Tab "Body" → raw → JSON
 5. Pega el JSON del ejemplo
@@ -621,21 +635,21 @@ Retorna la estructura completa del proyecto igual que en el `POST` (ver ejemplo 
 
 #### Instrucciones para Probar
 
-**Con cURL:**
-```bash
-TOKEN="tu_access_token_aqui"
-PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
-
-curl -X GET http://localhost:8001/api/v1/projects/$PROJECT_ID \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-**Con Swagger UI:**
-1. Abre `http://localhost:8001/docs`
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
 2. Busca "GET /api/v1/projects/{project_id}"
 3. Click "Try it out"
 4. Pega el UUID en "project_id"
 5. Click "Execute"
+
+**Opción 2: cURL**
+```bash
+TOKEN="tu_access_token_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 
@@ -696,12 +710,20 @@ Retorna el proyecto actualizado con todos sus datos.
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "PATCH /api/v1/projects/{project_id}"
+3. Click "Try it out"
+4. Pega el UUID en "project_id"
+5. Completa el JSON con los datos del ejemplo
+6. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
 
-curl -X PATCH http://localhost:8001/api/v1/projects/$PROJECT_ID \
+curl -X PATCH https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -735,12 +757,19 @@ La eliminación es **permanente e irrevocable**. No hay confirmación adicional.
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "DELETE /api/v1/projects/{project_id}"
+3. Click "Try it out"
+4. Pega el UUID en "project_id"
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
 
-curl -X DELETE http://localhost:8001/api/v1/projects/$PROJECT_ID \
+curl -X DELETE https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -827,13 +856,21 @@ Ejemplo alternativo (materiales):
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/projects/{project_id}/etapas/{etapa_id}/pedidos"
+3. Click "Try it out"
+4. Pega los UUIDs de proyecto y etapa
+5. Completa el JSON con los datos del ejemplo
+6. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
 ETAPA_ID="223e4567-e89b-12d3-a456-426614174111"
 
-curl -X POST http://localhost:8001/api/v1/projects/$PROJECT_ID/etapas/$ETAPA_ID/pedidos \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/etapas/$ETAPA_ID/pedidos \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -906,17 +943,25 @@ GET /api/v1/projects/123e4567-e89b-12d3-a456-426614174000/pedidos?estado=COMPLET
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "GET /api/v1/projects/{project_id}/pedidos"
+3. Click "Try it out"
+4. Pega el UUID del proyecto
+5. (Opcional) Usa el parámetro `estado` para filtrar
+6. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
 
 # Todos los pedidos
-curl -X GET http://localhost:8001/api/v1/projects/$PROJECT_ID/pedidos \
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/pedidos \
   -H "Authorization: Bearer $TOKEN"
 
 # Solo pendientes
-curl -X GET "http://localhost:8001/api/v1/projects/$PROJECT_ID/pedidos?estado=PENDIENTE" \
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/pedidos?estado=PENDIENTE" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -941,12 +986,19 @@ Elimina un pedido específico (también elimina sus ofertas asociadas).
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "DELETE /api/v1/pedidos/{pedido_id}"
+3. Click "Try it out"
+4. Pega el UUID del pedido
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 PEDIDO_ID="423e4567-e89b-12d3-a456-426614174333"
 
-curl -X DELETE http://localhost:8001/api/v1/pedidos/$PEDIDO_ID \
+curl -X DELETE https://project-planning-cloud-api.onrender.com/api/v1/pedidos/$PEDIDO_ID \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1011,12 +1063,20 @@ Crea una nueva oferta para un pedido específico. Un usuario propone sus servici
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/pedidos/{pedido_id}/ofertas"
+3. Click "Try it out"
+4. Pega el UUID del pedido
+5. Completa el JSON con los datos del ejemplo
+6. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 PEDIDO_ID="423e4567-e89b-12d3-a456-426614174333"
 
-curl -X POST http://localhost:8001/api/v1/pedidos/$PEDIDO_ID/ofertas \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/pedidos/$PEDIDO_ID/ofertas \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1069,12 +1129,19 @@ Obtiene todas las ofertas para un pedido específico (con detalles del usuario o
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "GET /api/v1/pedidos/{pedido_id}/ofertas"
+3. Click "Try it out"
+4. Pega el UUID del pedido
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 PEDIDO_ID="423e4567-e89b-12d3-a456-426614174333"
 
-curl -X GET http://localhost:8001/api/v1/pedidos/$PEDIDO_ID/ofertas \
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/pedidos/$PEDIDO_ID/ofertas \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1129,12 +1196,19 @@ Sin body requerido.
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/ofertas/{oferta_id}/accept"
+3. Click "Try it out"
+4. Pega el UUID de la oferta
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 OFERTA_ID="523e4567-e89b-12d3-a456-426614174444"
 
-curl -X POST http://localhost:8001/api/v1/ofertas/$OFERTA_ID/accept \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/ofertas/$OFERTA_ID/accept \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1173,12 +1247,19 @@ El propietario del proyecto rechaza una oferta.
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/ofertas/{oferta_id}/reject"
+3. Click "Try it out"
+4. Pega el UUID de la oferta
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 OFERTA_ID="523e4567-e89b-12d3-a456-426614174444"
 
-curl -X POST http://localhost:8001/api/v1/ofertas/$OFERTA_ID/reject \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/ofertas/$OFERTA_ID/reject \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1233,12 +1314,19 @@ Sin body requerido.
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/ofertas/{oferta_id}/confirmar-realizacion"
+3. Click "Try it out"
+4. Pega el UUID de la oferta
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 OFERTA_ID="523e4567-e89b-12d3-a456-426614174444"
 
-curl -X POST http://localhost:8001/api/v1/ofertas/$OFERTA_ID/confirmar-realizacion \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/ofertas/$OFERTA_ID/confirmar-realizacion \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1297,16 +1385,23 @@ GET /api/v1/ofertas/mis-compromisos?estado_pedido=COMPLETADO
 
 #### Instrucciones para Probar
 
-**Con cURL:**
+**Opción 1: Swagger UI (Recomendado)**
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "GET /api/v1/ofertas/mis-compromisos"
+3. Click "Try it out"
+4. (Opcional) Usa el parámetro `estado_pedido` para filtrar
+5. Click "Execute"
+
+**Opción 2: cURL**
 ```bash
 TOKEN="tu_access_token_aqui"
 
 # Todos los compromisos
-curl -X GET http://localhost:8001/api/v1/ofertas/mis-compromisos \
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/ofertas/mis-compromisos \
   -H "Authorization: Bearer $TOKEN"
 
 # Solo comprometidos
-curl -X GET "http://localhost:8001/api/v1/ofertas/mis-compromisos?estado_pedido=COMPROMETIDO" \
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/ofertas/mis-compromisos?estado_pedido=COMPROMETIDO" \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1426,7 +1521,7 @@ A continuación, un ejemplo paso a paso de cómo usar la API desde cero:
 
 **Usuario 1 - Proyecto Owner (María)**
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/register \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "maria@ong.com",
@@ -1442,7 +1537,7 @@ Guarda el `id` retornado. Ejemplo: `550e8400-e29b-41d4-a716-446655440000`
 
 **Usuario 2 - Oferente (Carlos)**
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/register \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/register \
   -H "Content-Type: application/json" \
   -d '{
     "email": "carlos@empresa.com",
@@ -1460,7 +1555,7 @@ Guarda el `id` retornado. Ejemplo: `550e8400-e29b-41d4-a716-446655440001`
 
 **María (Dueña del Proyecto)**
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/login \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "maria@ong.com",
@@ -1475,7 +1570,7 @@ MARIA_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 
 **Carlos (Oferente)**
 ```bash
-curl -X POST http://localhost:8001/api/v1/auth/login \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "email": "carlos@empresa.com",
@@ -1493,7 +1588,7 @@ CARLOS_TOKEN="eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9..."
 ```bash
 MARIA_TOKEN="tu_token_aqui"
 
-curl -X POST http://localhost:8001/api/v1/projects \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects \
   -H "Authorization: Bearer $MARIA_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1534,7 +1629,7 @@ curl -X POST http://localhost:8001/api/v1/projects \
 CARLOS_TOKEN="tu_token_aqui"
 PEDIDO_ID="423e4567-e89b-12d3-a456-426614174333"
 
-curl -X POST http://localhost:8001/api/v1/pedidos/$PEDIDO_ID/ofertas \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/pedidos/$PEDIDO_ID/ofertas \
   -H "Authorization: Bearer $CARLOS_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1552,7 +1647,7 @@ curl -X POST http://localhost:8001/api/v1/pedidos/$PEDIDO_ID/ofertas \
 MARIA_TOKEN="tu_token_aqui"
 PEDIDO_ID="423e4567-e89b-12d3-a456-426614174333"
 
-curl -X GET http://localhost:8001/api/v1/pedidos/$PEDIDO_ID/ofertas \
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/pedidos/$PEDIDO_ID/ofertas \
   -H "Authorization: Bearer $MARIA_TOKEN"
 ```
 
@@ -1564,7 +1659,7 @@ Verá la oferta de Carlos con sus detalles.
 MARIA_TOKEN="tu_token_aqui"
 OFERTA_ID="523e4567-e89b-12d3-a456-426614174444"
 
-curl -X POST http://localhost:8001/api/v1/ofertas/$OFERTA_ID/accept \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/ofertas/$OFERTA_ID/accept \
   -H "Authorization: Bearer $MARIA_TOKEN"
 ```
 
@@ -1578,7 +1673,7 @@ curl -X POST http://localhost:8001/api/v1/ofertas/$OFERTA_ID/accept \
 CARLOS_TOKEN="tu_token_aqui"
 OFERTA_ID="523e4567-e89b-12d3-a456-426614174444"
 
-curl -X POST http://localhost:8001/api/v1/ofertas/$OFERTA_ID/confirmar-realizacion \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/ofertas/$OFERTA_ID/confirmar-realizacion \
   -H "Authorization: Bearer $CARLOS_TOKEN"
 ```
 
@@ -1590,7 +1685,7 @@ curl -X POST http://localhost:8001/api/v1/ofertas/$OFERTA_ID/confirmar-realizaci
 ```bash
 CARLOS_TOKEN="tu_token_aqui"
 
-curl -X GET http://localhost:8001/api/v1/ofertas/mis-compromisos \
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/ofertas/mis-compromisos \
   -H "Authorization: Bearer $CARLOS_TOKEN"
 ```
 
@@ -1647,160 +1742,131 @@ Verá todas sus ofertas aceptadas con estado `aceptada` y sus pedidos asociados.
 
 ## Instrucciones para Pruebas
 
+### ⚡ Quick Start - La Forma Más Rápida
+
+**¡Sin instalación, solo 3 pasos!**
+
+1. **Abre en tu navegador:**
+   ```
+   https://project-planning-cloud-api.onrender.com/docs
+   ```
+
+2. **Haz click en "POST /api/v1/auth/register"** → "Try it out"
+
+3. **Completa los datos de prueba:**
+   ```json
+   {
+     "email": "profesor@test.com",
+     "password": "Test1234",
+     "nombre": "Profesor",
+     "apellido": "Corrector",
+     "ong": "Universidad"
+   }
+   ```
+
+4. **Click "Execute"** ✅
+
+¡Listo! Ya tienes un usuario. Ahora puedes probar cualquier endpoint directamente desde Swagger.
+
+---
+
 ### Opción 1: Swagger UI (Recomendado)
 
-1. **Inicia el servidor:**
-   ```bash
-   # Con Docker
-   docker-compose up --build
+Esta es la forma más fácil y no requiere instalar nada.
 
-   # O con uv (desarrollo)
-   uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8001
+1. **Abre en tu navegador:**
+   ```
+   https://project-planning-cloud-api.onrender.com/docs
    ```
 
-2. **Abre en el navegador:**
-   ```
-   http://localhost:8001/docs
-   ```
-
-3. **En Swagger UI:**
-   - Haz click en "POST /api/v1/auth/register"
+2. **Autentzate:**
+   - Busca "POST /api/v1/auth/login"
    - Click "Try it out"
-   - Rellena los campos
+   - Usa los datos del paso anterior para login
    - Click "Execute"
    - Copia el `access_token`
-   - Haz click en el botón "Authorize" arriba a la derecha
-   - Pega: `Bearer {access_token}`
+   - Haz click en el botón **"Authorize"** (arriba a la derecha)
+   - Pega: `Bearer {tu_access_token}`
    - Click "Authorize"
-   - Ahora puedes probar endpoints protegidos
+
+3. **Prueba cualquier endpoint:**
+   - Todos los endpoints están listados
+   - Click "Try it out" en cualquiera
+   - Completa los parámetros/body
+   - Click "Execute"
+
+---
 
 ### Opción 2: Postman
 
-1. **Descarga Postman:** https://www.postman.com/downloads/
+**Si prefieres usar Postman:**
 
-2. **Crea una nueva colección:**
-   - File → New → Collection → "ProjectPlanning Cloud API"
+1. Descarga: https://www.postman.com/downloads/
+2. Crea nueva petición POST
+3. URL: `https://project-planning-cloud-api.onrender.com/api/v1/auth/register`
+4. Body (JSON): usa el ejemplo de arriba
+5. Click "Send"
+6. Para endpoints protegidos:
+   - Tab "Authorization" → Type: "Bearer Token"
+   - Token: pega tu access_token
 
-3. **Agrega variables (opcional):**
-   - Variables → Add:
-     - `base_url`: `http://localhost:8001`
-     - `access_token`: (dejarás vacío)
+---
 
-4. **Para cada endpoint:**
-   - New → HTTP Request
-   - Nombre: "POST Register"
-   - Selecciona método y URL
-   - Authorization tab → Type: "Bearer Token"
-   - Token: `{{access_token}}`
-   - Body → raw → JSON
-   - Click Send
-
-5. **Guarda tokens:**
-   - En la respuesta del login, verás el token
-   - Cópialo en la variable `access_token`
-
-### Opción 3: cURL (Línea de Comandos)
+### Opción 3: cURL (Terminal)
 
 ```bash
 # 1. Registrar
-curl -X POST http://localhost:8001/api/v1/auth/register \
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/register \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"Test123","nombre":"Test","apellido":"User","ong":"Test ONG"}'
+  -d '{"email":"profesor@test.com","password":"Test1234","nombre":"Profesor","apellido":"Corrector","ong":"Universidad"}'
 
-# 2. Login y guardar token
-TOKEN=$(curl -s -X POST http://localhost:8001/api/v1/auth/login \
+# 2. Login
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/login \
   -H "Content-Type: application/json" \
-  -d '{"email":"test@test.com","password":"Test123"}' \
-  | jq -r '.access_token')
-
-echo "Token: $TOKEN"
-
-# 3. Usar token en peticiones
-curl -X GET http://localhost:8001/api/v1/projects/123 \
-  -H "Authorization: Bearer $TOKEN"
-```
-
-### Opción 4: Thunder Client (VS Code)
-
-1. **Instala la extensión:** Thunder Client en VS Code
-
-2. **Abre Thunder Client** → Nuevo request
-
-3. **Configure:**
-   - Método: POST
-   - URL: `http://localhost:8001/api/v1/auth/register`
-   - Body (JSON):
-     ```json
-     {
-       "email": "test@test.com",
-       "password": "Test123",
-       "nombre": "Test",
-       "apellido": "User",
-       "ong": "Test ONG"
-     }
-     ```
-
-4. **Para autenticación:**
-   - Auth → Bearer
-   - Token: pega tu access_token
-
-### Dockerizado
-
-**Inicia todo:**
-```bash
-docker-compose up --build
-```
-
-**Servicios disponibles:**
-- API: `http://localhost:8001`
-- Swagger: `http://localhost:8001/docs`
-- PostgreSQL: `localhost:5432`
-
-**Detén los servicios:**
-```bash
-docker-compose down
-```
-
-**Ver logs:**
-```bash
-docker-compose logs -f api
+  -d '{"email":"profesor@test.com","password":"Test1234"}'
 ```
 
 ---
 
 ## Checklist de Pruebas
 
-Use este checklist para validar que todos los endpoints funcionan:
+**Use este checklist para validar que todos los endpoints funcionan correctamente:**
 
-### Autenticación
-- [ ] Registrar nuevo usuario (POST /api/v1/auth/register)
-- [ ] Login (POST /api/v1/auth/login) - Guardar token
-- [ ] Refrescar token (POST /api/v1/auth/refresh)
+### ✅ Autenticación
+- [ ] POST `/api/v1/auth/register` - Crear nuevo usuario
+- [ ] POST `/api/v1/auth/login` - Obtener tokens
+- [ ] POST `/api/v1/auth/refresh` - Refrescar token
 
-### Proyectos
-- [ ] Crear proyecto (POST /api/v1/projects)
-- [ ] Obtener proyecto (GET /api/v1/projects/{id})
-- [ ] Actualizar proyecto (PATCH /api/v1/projects/{id})
-- [ ] Listar pedidos del proyecto (GET /api/v1/projects/{id}/pedidos)
+### ✅ Proyectos
+- [ ] POST `/api/v1/projects` - Crear proyecto con etapas y pedidos anidados
+- [ ] GET `/api/v1/projects/{project_id}` - Obtener proyecto completo
+- [ ] PATCH `/api/v1/projects/{project_id}` - Actualizar proyecto
+- [ ] DELETE `/api/v1/projects/{project_id}` - Eliminar proyecto
+- [ ] GET `/api/v1/projects/{project_id}/pedidos` - Listar pedidos de proyecto
 
-### Pedidos
-- [ ] Crear pedido (POST /api/v1/projects/{id}/etapas/{id}/pedidos)
-- [ ] Listar pedidos con filtro (GET /api/v1/projects/{id}/pedidos?estado=PENDIENTE)
-- [ ] Eliminar pedido (DELETE /api/v1/pedidos/{id})
+### ✅ Pedidos
+- [ ] POST `/api/v1/projects/{project_id}/etapas/{etapa_id}/pedidos` - Crear pedido
+- [ ] GET `/api/v1/projects/{project_id}/pedidos?estado=PENDIENTE` - Filtrar pendientes
+- [ ] DELETE `/api/v1/pedidos/{pedido_id}` - Eliminar pedido
 
-### Ofertas
-- [ ] Crear oferta (POST /api/v1/pedidos/{id}/ofertas)
-- [ ] Listar ofertas (GET /api/v1/pedidos/{id}/ofertas)
-- [ ] Aceptar oferta (POST /api/v1/ofertas/{id}/accept)
-- [ ] Rechazar oferta (POST /api/v1/ofertas/{id}/reject)
-- [ ] Confirmar realización (POST /api/v1/ofertas/{id}/confirmar-realizacion)
-- [ ] Mis compromisos (GET /api/v1/ofertas/mis-compromisos)
+### ✅ Ofertas
+- [ ] POST `/api/v1/pedidos/{pedido_id}/ofertas` - Crear oferta
+- [ ] GET `/api/v1/pedidos/{pedido_id}/ofertas` - Listar ofertas para pedido
+- [ ] POST `/api/v1/ofertas/{oferta_id}/accept` - Aceptar oferta
+- [ ] POST `/api/v1/ofertas/{oferta_id}/reject` - Rechazar oferta
+- [ ] POST `/api/v1/ofertas/{oferta_id}/confirmar-realizacion` - Confirmar realización
+- [ ] GET `/api/v1/ofertas/mis-compromisos` - Ver mis compromisos
 
-### Eliminación
-- [ ] Eliminar proyecto (DELETE /api/v1/projects/{id}) - Verifica cascada
+---
+
+## 📞 Soporte
+
+- **Swagger Interactivo:** https://project-planning-cloud-api.onrender.com/docs
+- **Health Check:** https://project-planning-cloud-api.onrender.com/health
+- **OpenAPI JSON:** https://project-planning-cloud-api.onrender.com/openapi.json
+
+Para más detalles técnicos: revisar [CLAUDE.md](CLAUDE.md)
 
 ---
 
 **Fin de Documentación**
-
-Para preguntas o soporte: Contacta a la cátedra o revisa [CLAUDE.md](CLAUDE.md) para más detalles técnicos.
