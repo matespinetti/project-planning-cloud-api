@@ -43,7 +43,7 @@ venv.bak/
 # uv
 .uv/
 
-
+header.tex
 # Testing
 .pytest_cache/
 .coverage
