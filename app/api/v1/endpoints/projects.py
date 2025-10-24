@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps.auth import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
 from app.schemas.proyecto import ProyectoCreate, ProyectoResponse, ProyectoUpdate
 from app.services.proyecto_service import ProyectoService
 
@@ -20,6 +21,44 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
     "/projects",
     response_model=ProyectoResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid proyecto data or nested etapas/pedidos",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "pydantic_validation": {
+                            "summary": "Pydantic validation error",
+                            "value": {
+                                "detail": [
+                                    {
+                                        "loc": ["body", "titulo"],
+                                        "msg": "ensure this value has at least 5 characters",
+                                        "type": "value_error.any_str.min_length",
+                                    }
+                                ]
+                            },
+                        },
+                        "service_validation": {
+                            "summary": "Service layer validation error",
+                            "value": {"detail": "Invalid proyecto data"},
+                        },
+                    }
+                }
+            },
+        },
+        500: {
+            "model": ErrorDetail,
+            "description": "Internal Server Error - Unexpected error during proyecto creation",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Error creating proyecto: Database error"}
+                }
+            },
+        },
+    },
 )
 async def create_project(
     proyecto_data: ProyectoCreate,
@@ -50,7 +89,24 @@ async def create_project(
         )
 
 
-@router.get("/projects/{project_id}", response_model=ProyectoResponse)
+@router.get(
+    "/projects/{project_id}",
+    response_model=ProyectoResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Proyecto does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+    },
+)
 async def get_project(
     project_id: UUID,
     db: AsyncSession = Depends(get_db),
@@ -72,7 +128,32 @@ async def get_project(
     return ProyectoResponse.model_validate(db_proyecto)
 
 
-@router.patch("/projects/{project_id}", response_model=ProyectoResponse)
+@router.patch(
+    "/projects/{project_id}",
+    response_model=ProyectoResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: OWNERSHIP_RESPONSES[403],
+        404: OWNERSHIP_RESPONSES[404],
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid update data",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["body", "bonita_case_id"],
+                                "msg": "string does not match regex",
+                                "type": "value_error.str.regex",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
+)
 async def update_project(
     project_id: UUID,
     update_data: ProyectoUpdate,
@@ -97,7 +178,33 @@ async def update_project(
     return ProyectoResponse.model_validate(db_proyecto)
 
 
-@router.delete("/projects/{project_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete(
+    "/projects/{project_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the owner of this project",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "You are not the owner of this project"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Project does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+    },
+)
 async def delete_project(
     project_id: UUID,
     db: AsyncSession = Depends(get_db),

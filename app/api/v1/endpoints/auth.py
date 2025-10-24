@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core import security
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.errors import AuthErrorDetail, ErrorDetail, ValidationErrorDetail
 from app.schemas.user import (
     TokenPair,
     TokenRefreshRequest,
@@ -15,7 +16,11 @@ from app.schemas.user import (
     UserLogin,
     UserResponse,
 )
-from app.services.user_service import UserService, UserAlreadyExistsError, InvalidPasswordError
+from app.services.user_service import (
+    InvalidPasswordError,
+    UserAlreadyExistsError,
+    UserService,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +35,41 @@ def _build_token_pair(user: User) -> TokenPair:
     return TokenPair(access_token=access_token, refresh_token=refresh_token)
 
 
-@router.post("/register", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
+@router.post(
+    "/register",
+    response_model=UserResponse,
+    status_code=status.HTTP_201_CREATED,
+    responses={
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Email already exists, invalid password, or invalid registration data",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "email_exists": {
+                            "summary": "Email already registered",
+                            "value": {"detail": "A user with this email already exists"},
+                        },
+                        "invalid_password": {
+                            "summary": "Password too long",
+                            "value": {
+                                "detail": "Password cannot exceed 72 bytes in length"
+                            },
+                        },
+                        "invalid_data": {
+                            "summary": "Invalid registration data",
+                            "value": {"detail": "Invalid registration data"},
+                        },
+                    }
+                }
+            },
+        },
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Request body does not match expected schema",
+        },
+    },
+)
 async def register_user(
     payload: UserCreate,
     db: AsyncSession = Depends(get_db),
@@ -69,7 +108,25 @@ async def register_user(
     return UserResponse.model_validate(user)
 
 
-@router.post("/login", response_model=TokenPair)
+@router.post(
+    "/login",
+    response_model=TokenPair,
+    responses={
+        401: {
+            "model": AuthErrorDetail,
+            "description": "Unauthorized - Invalid email or password",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Incorrect email or password"}
+                }
+            },
+        },
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Request body does not match expected schema",
+        },
+    },
+)
 async def login(
     credentials: UserLogin,
     db: AsyncSession = Depends(get_db),
@@ -88,7 +145,34 @@ async def login(
     return _build_token_pair(user)
 
 
-@router.post("/refresh", response_model=TokenPair)
+@router.post(
+    "/refresh",
+    response_model=TokenPair,
+    responses={
+        401: {
+            "model": AuthErrorDetail,
+            "description": "Unauthorized - Invalid, expired, or malformed refresh token",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "invalid_token": {
+                            "summary": "Invalid or expired token",
+                            "value": {"detail": "Invalid refresh token"},
+                        },
+                        "user_not_found": {
+                            "summary": "User no longer exists",
+                            "value": {"detail": "Invalid refresh token"},
+                        },
+                    }
+                }
+            },
+        },
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Request body does not match expected schema",
+        },
+    },
+)
 async def refresh_tokens(
     payload: TokenRefreshRequest,
     db: AsyncSession = Depends(get_db),

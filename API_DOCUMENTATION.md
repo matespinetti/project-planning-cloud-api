@@ -26,11 +26,11 @@
 
 ### Integrantes
 
-| Nombre                | Rol                   | Email               |
-| --------------------- | --------------------- | ------------------- |
-| **Mateo Spinetti** | [Desarrollador] | [mateospinetti1@gmail.com] |
-| **Luciano Equiel Wagner** | [Desarrollador]       | [lucianowagner2003@gmail.com] |
-| **Matias Santiago Ramos Giacosa** | [Desarrollador]       | [matiasramosgi@gmail.com] |
+| Nombre                            | Rol             | Email                         |
+| --------------------------------- | --------------- | ----------------------------- |
+| **Mateo Spinetti**                | [Desarrollador] | [mateospinetti1@gmail.com]    |
+| **Luciano Equiel Wagner**         | [Desarrollador] | [lucianowagner2003@gmail.com] |
+| **Matias Santiago Ramos Giacosa** | [Desarrollador] | [matiasramosgi@gmail.com]     |
 
 ### Universidad y Cátedra
 
@@ -210,11 +210,12 @@ Crea una nueva cuenta de usuario en el sistema.
 
 #### Errores Posibles
 
-| Código | Descripción         | Solución                       |
-| ------ | ------------------- | ------------------------------ |
-| `400`  | Email ya registrado | Usa un email diferente         |
-| `422`  | Validación fallida  | Revisa el formato de los datos |
-| `500`  | Error del servidor  | Contacta al administrador      |
+| Código | Descripción                  | Ejemplo de Error                                                                                       | Solución                                                         |
+| ------ | ---------------------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------- |
+| `400`  | Email ya registrado          | `{"detail": "A user with this email already exists"}`                                                  | Usa un email diferente                                           |
+| `400`  | Contraseña demasiado larga   | `{"detail": "Password cannot exceed 72 bytes in length"}`                                              | Usa una contraseña más corta                                     |
+| `400`  | Datos de registro inválidos  | `{"detail": "Invalid registration data"}`                                                              | Revisa que todos los campos cumplan los requisitos               |
+| `422`  | Error de validación Pydantic | `{"detail": [{"loc": ["body", "email"], "msg": "invalid email format", "type": "value_error.email"}]}` | Revisa el formato de los datos (email válido, campos requeridos) |
 
 #### Instrucciones para Probar
 
@@ -295,11 +296,10 @@ Obtiene los tokens JWT para acceder a endpoints protegidos.
 
 #### Errores Posibles
 
-| Código | Descripción            | Solución                    |
-| ------ | ---------------------- | --------------------------- |
-| `401`  | Credenciales inválidas | Verifica email y contraseña |
-| `422`  | Validación fallida     | Revisa el formato           |
-| `500`  | Error del servidor     | Contacta al administrador   |
+| Código | Descripción                  | Ejemplo de Error                                                                                   | Solución                                               |
+| ------ | ---------------------------- | -------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `401`  | Credenciales incorrectas     | `{"detail": "Incorrect email or password"}`                                                        | Verifica que el email y contraseña sean correctos      |
+| `422`  | Error de validación Pydantic | `{"detail": [{"loc": ["body", "email"], "msg": "field required", "type": "value_error.missing"}]}` | Revisa que todos los campos requeridos estén presentes |
 
 #### Instrucciones para Probar
 
@@ -371,11 +371,11 @@ Obtiene un nuevo `access_token` cuando el anterior expira.
 
 #### Errores Posibles
 
-| Código | Descripción               | Solución                  |
-| ------ | ------------------------- | ------------------------- |
-| `401`  | Token inválido o expirado | Haz login nuevamente      |
-| `422`  | Validación fallida        | Verifica el token         |
-| `500`  | Error del servidor        | Contacta al administrador |
+| Código | Descripción                       | Ejemplo de Error                                                                                           | Solución                                                        |
+| ------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| `401`  | Refresh token inválido o expirado | `{"detail": "Invalid refresh token"}`                                                                      | Haz login nuevamente para obtener nuevos tokens                 |
+| `401`  | Usuario no encontrado             | `{"detail": "Invalid refresh token"}`                                                                      | El usuario asociado al token ya no existe, haz login nuevamente |
+| `422`  | Error de validación Pydantic      | `{"detail": [{"loc": ["body", "refresh_token"], "msg": "field required", "type": "value_error.missing"}]}` | Verifica que el campo refresh_token esté presente               |
 
 ---
 
@@ -648,6 +648,13 @@ GET /api/v1/projects/123e4567-e89b-12d3-a456-426614174000
 
 Retorna la estructura completa del proyecto igual que en el `POST` (ver ejemplo anterior).
 
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                | Solución                                                      |
+| ------ | ------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                        | Proporciona un access_token válido en el header Authorization |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}` | Verifica que el project_id sea correcto                       |
+
 #### Instrucciones para Probar
 
 **Opción 1: Swagger UI (Recomendado)**
@@ -719,11 +726,12 @@ Retorna el proyecto actualizado con todos sus datos.
 
 #### Errores Posibles
 
-| Código | Descripción            | Solución                                    |
-| ------ | ---------------------- | ------------------------------------------- |
-| `403`  | No eres el propietario | Solo el dueño del proyecto puede actualizar |
-| `404`  | Proyecto no existe     | Verifica el project_id                      |
-| `422`  | Validación fallida     | Revisa el formato de los datos              |
+| Código | Descripción               | Ejemplo de Error                                                                                                           | Solución                                      |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                   | Proporciona un access_token válido            |
+| `403`  | No eres el propietario    | `{"detail": "Forbidden - User is not the owner of this resource"}`                                                         | Solo el dueño del proyecto puede actualizar   |
+| `404`  | Proyecto no existe        | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                            | Verifica que el project_id sea correcto       |
+| `422`  | Validación fallida        | `{"detail": [{"loc": ["body", "bonita_case_id"], "msg": "string does not match regex", "type": "value_error.str.regex"}]}` | Revisa el formato de los datos proporcionados |
 
 #### Instrucciones para Probar
 
@@ -773,6 +781,14 @@ Elimina un proyecto y **toda su estructura anidada** (etapas, pedidos, ofertas).
 #### Confirmación
 
 La eliminación es **permanente e irrevocable**. No hay confirmación adicional.
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                | Solución                                    |
+| ------ | ------------------------- | ------------------------------------------------------------------------------- | ------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                        | Proporciona un access_token válido          |
+| `403`  | No eres el propietario    | `{"detail": "You are not the owner of this project"}`                           | Solo el dueño del proyecto puede eliminarlo |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}` | Verifica que el project_id sea correcto     |
 
 #### Instrucciones para Probar
 
@@ -871,11 +887,13 @@ Ejemplo alternativo (materiales):
 
 #### Errores Posibles
 
-| Código | Descripción                 | Solución                          |
-| ------ | --------------------------- | --------------------------------- |
-| `403`  | No eres el propietario      | Solo el dueño puede crear pedidos |
-| `404`  | Proyecto o etapa no existen | Verifica los IDs                  |
-| `422`  | Validación fallida          | Revisa el tipo y descripción      |
+| Código | Descripción                         | Ejemplo de Error                                                                                                       | Solución                                                                                   |
+| ------ | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `401`  | Token inválido o faltante           | `{"detail": "Invalid or expired token"}`                                                                               | Proporciona un access_token válido                                                         |
+| `403`  | No eres el propietario del proyecto | `{"detail": "You are not the owner of this project"}`                                                                  | Solo el dueño del proyecto puede crear pedidos                                             |
+| `404`  | Proyecto no encontrado              | `{"detail": "Proyecto with id ... not found"}`                                                                         | Verifica que el project_id sea correcto                                                    |
+| `404`  | Etapa no encontrada                 | `{"detail": "Etapa with id ... not found in proyecto"}`                                                                | Verifica que el etapa_id pertenezca al proyecto                                            |
+| `422`  | Validación fallida                  | `{"detail": [{"loc": ["body", "tipo"], "msg": "value is not a valid enumeration member", "type": "type_error.enum"}]}` | Revisa que el tipo sea válido (economico, materiales, mano_obra, transporte, equipamiento) |
 
 #### Instrucciones para Probar
 
@@ -966,6 +984,14 @@ GET /api/v1/projects/123e4567-e89b-12d3-a456-426614174000/pedidos?estado=COMPLET
 ]
 ```
 
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                                                    | Solución                                                |
+| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                            | Proporciona un access_token válido                      |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id ... not found"}`                                                                      | Verifica que el project_id sea correcto                 |
+| `422`  | Filtro de estado inválido | `{"detail": [{"loc": ["query", "estado"], "msg": "string does not match regex", "type": "value_error.str.regex"}]}` | El parámetro estado debe ser "pendiente" o "completado" |
+
 #### Instrucciones para Probar
 
 **Opción 1: Swagger UI (Recomendado)**
@@ -1010,6 +1036,14 @@ Elimina un pedido específico (también elimina sus ofertas asociadas).
 | Parámetro   | Tipo | Descripción              |
 | ----------- | ---- | ------------------------ |
 | `pedido_id` | UUID | ID del pedido a eliminar |
+
+#### Errores Posibles
+
+| Código | Descripción                         | Ejemplo de Error                                      | Solución                                          |
+| ------ | ----------------------------------- | ----------------------------------------------------- | ------------------------------------------------- |
+| `401`  | Token inválido o faltante           | `{"detail": "Invalid or expired token"}`              | Proporciona un access_token válido                |
+| `403`  | No eres el propietario del proyecto | `{"detail": "You are not the owner of this project"}` | Solo el dueño del proyecto puede eliminar pedidos |
+| `404`  | Pedido no encontrado                | `{"detail": "Pedido with id ... not found"}`          | Verifica que el pedido_id sea correcto            |
 
 #### Instrucciones para Probar
 
@@ -1084,11 +1118,11 @@ Crea una nueva oferta para un pedido específico. Un usuario propone sus servici
 
 #### Errores Posibles
 
-| Código | Descripción                 | Solución                                       |
-| ------ | --------------------------- | ---------------------------------------------- |
-| `400`  | Pedido no está en PENDIENTE | Solo se puede ofertar a pedidos pendientes     |
-| `404`  | Pedido no existe            | Verifica el pedido_id                          |
-| `422`  | Validación fallida          | La descripción debe tener mínimo 10 caracteres |
+| Código | Descripción               | Ejemplo de Error                                                                                         | Solución                               |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                 | Proporciona un access_token válido     |
+| `404`  | Pedido no encontrado      | `{"detail": "Pedido with id ... not found"}`                                                             | Verifica que el pedido_id sea correcto |
+| `422`  | Validación fallida        | `{"detail": [{"loc": ["body", "descripcion"], "msg": "field required", "type": "value_error.missing"}]}` | La descripción es requerida            |
 
 #### Instrucciones para Probar
 
@@ -1158,6 +1192,14 @@ Obtiene todas las ofertas para un pedido específico (con detalles del usuario o
 ]
 ```
 
+#### Errores Posibles
+
+| Código | Descripción                         | Ejemplo de Error                                      | Solución                                                        |
+| ------ | ----------------------------------- | ----------------------------------------------------- | --------------------------------------------------------------- |
+| `401`  | Token inválido o faltante           | `{"detail": "Invalid or expired token"}`              | Proporciona un access_token válido                              |
+| `403`  | No eres el propietario del proyecto | `{"detail": "You are not the owner of this project"}` | Solo el dueño del proyecto puede ver las ofertas de sus pedidos |
+| `404`  | Pedido no encontrado                | `{"detail": "Pedido with id ... not found"}`          | Verifica que el pedido_id sea correcto                          |
+
 #### Instrucciones para Probar
 
 **Opción 1: Swagger UI (Recomendado)**
@@ -1222,11 +1264,13 @@ Sin body requerido.
 
 #### Errores Posibles
 
-| Código | Descripción              | Solución                                  |
-| ------ | ------------------------ | ----------------------------------------- |
-| `403`  | No eres el propietario   | Solo el dueño del proyecto                |
-| `404`  | Oferta no existe         | Verifica el oferta_id                     |
-| `400`  | Oferta no está pendiente | Solo ofertas pendientes se pueden aceptar |
+| Código | Descripción                         | Ejemplo de Error                                          | Solución                                                 |
+| ------ | ----------------------------------- | --------------------------------------------------------- | -------------------------------------------------------- |
+| `401`  | Token inválido o faltante           | `{"detail": "Invalid or expired token"}`                  | Proporciona un access_token válido                       |
+| `403`  | No eres el propietario del proyecto | `{"detail": "You are not the owner of this project"}`     | Solo el dueño del proyecto puede aceptar ofertas         |
+| `404`  | Oferta no encontrada                | `{"detail": "Oferta with id ... not found"}`              | Verifica que el oferta_id sea correcto                   |
+| `400`  | Pedido ya completado                | `{"detail": "Cannot accept oferta for completed pedido"}` | No se pueden aceptar ofertas de pedidos completados      |
+| `400`  | Pedido ya comprometido              | `{"detail": "Cannot accept oferta for committed pedido"}` | No se pueden aceptar ofertas de pedidos ya comprometidos |
 
 #### Instrucciones para Probar
 
@@ -1280,6 +1324,14 @@ El propietario del proyecto rechaza una oferta.
 	"updated_at": "2024-10-22T15:15:00+00:00"
 }
 ```
+
+#### Errores Posibles
+
+| Código | Descripción                         | Ejemplo de Error                                      | Solución                                          |
+| ------ | ----------------------------------- | ----------------------------------------------------- | ------------------------------------------------- |
+| `401`  | Token inválido o faltante           | `{"detail": "Invalid or expired token"}`              | Proporciona un access_token válido                |
+| `403`  | No eres el propietario del proyecto | `{"detail": "You are not the owner of this project"}` | Solo el dueño del proyecto puede rechazar ofertas |
+| `404`  | Oferta no encontrada                | `{"detail": "Oferta with id ... not found"}`          | Verifica que el oferta_id sea correcto            |
 
 #### Instrucciones para Probar
 
@@ -1344,12 +1396,13 @@ Sin body requerido.
 
 #### Errores Posibles
 
-| Código | Descripción            | Solución                                    |
-| ------ | ---------------------- | ------------------------------------------- |
-| `403`  | No eres el creador     | Solo quien creó la oferta puede confirmar   |
-| `404`  | Oferta no existe       | Verifica el oferta_id                       |
-| `400`  | Oferta no aceptada     | Solo ofertas aceptadas se pueden confirmar  |
-| `400`  | Pedido no comprometido | El pedido debe estar en estado COMPROMETIDO |
+| Código | Descripción                     | Ejemplo de Error                                                                                | Solución                                                         |
+| ------ | ------------------------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `401`  | Token inválido o faltante       | `{"detail": "Invalid or expired token"}`                                                        | Proporciona un access_token válido                               |
+| `403`  | No eres el creador de la oferta | `{"detail": "You are not the creator of this oferta"}`                                          | Solo quien creó la oferta puede confirmar su realización         |
+| `404`  | Oferta no encontrada            | `{"detail": "Oferta with id ... not found"}`                                                    | Verifica que el oferta_id sea correcto                           |
+| `400`  | Compromiso ya confirmado        | `{"detail": "This commitment has already been confirmed and marked as completado"}`             | Esta oferta ya fue confirmada previamente                        |
+| `400`  | Estado de pedido incorrecto     | `{"detail": "Cannot confirm realization. Pedido is in state pendiente, expected comprometido"}` | El pedido debe estar en estado COMPROMETIDO para poder confirmar |
 
 #### Instrucciones para Probar
 
@@ -1423,6 +1476,13 @@ GET /api/v1/ofertas/mis-compromisos?estado_pedido=COMPLETADO
 	}
 ]
 ```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                                                                 | Solución                                                                  |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                         | Proporciona un access_token válido                                        |
+| `422`  | Filtro de estado inválido | `{"detail": [{"loc": ["query", "estado_pedido"], "msg": "value is not a valid enumeration member", "type": "type_error.enum"}]}` | El parámetro estado_pedido debe ser un valor válido del enum EstadoPedido |
 
 #### Instrucciones para Probar
 
@@ -1751,39 +1811,203 @@ Verá todas sus ofertas aceptadas con estado `aceptada` y sus pedidos asociados.
 
 ## Códigos de Error
 
-### Códigos HTTP Comunes
+Esta sección describe **todos los códigos de error posibles** que la API puede retornar, organizados por categoría.
 
-| Código | Nombre                | Descripción                        | Solución                            |
-| ------ | --------------------- | ---------------------------------- | ----------------------------------- |
-| `200`  | OK                    | Petición exitosa                   | -                                   |
-| `201`  | Created               | Recurso creado exitosamente        | -                                   |
-| `204`  | No Content            | Eliminación exitosa                | -                                   |
-| `400`  | Bad Request           | Solicitud incorrecta               | Revisa el body y parámetros         |
-| `401`  | Unauthorized          | Sin autenticación o token inválido | Proporciona un access_token válido  |
-| `403`  | Forbidden             | No tienes permiso                  | Solo propietarios pueden hacer esto |
-| `404`  | Not Found             | Recurso no existe                  | Verifica los IDs proporcionados     |
-| `422`  | Unprocessable Entity  | Validación fallida                 | Revisa el formato de los datos      |
-| `500`  | Internal Server Error | Error del servidor                 | Contacta al administrador           |
+### Códigos HTTP Estándar
 
-### Ejemplos de Errores
+| Código | Nombre                | Descripción                                     |
+| ------ | --------------------- | ----------------------------------------------- |
+| `200`  | OK                    | Petición exitosa                                |
+| `201`  | Created               | Recurso creado exitosamente                     |
+| `204`  | No Content            | Eliminación exitosa (sin body)                  |
+| `400`  | Bad Request           | Solicitud incorrecta o regla de negocio violada |
+| `401`  | Unauthorized          | Sin autenticación o token inválido              |
+| `403`  | Forbidden             | No tienes permisos para esta acción             |
+| `404`  | Not Found             | Recurso no existe                               |
+| `422`  | Unprocessable Entity  | Validación de datos fallida                     |
+| `500`  | Internal Server Error | Error inesperado del servidor                   |
 
-**Error 401 - Token Inválido**
+---
+
+### Errores por Endpoint
+
+#### Autenticación
+
+##### POST /api/v1/auth/register
+
+| Código | Error                      | Ejemplo                                                                                                |
+| ------ | -------------------------- | ------------------------------------------------------------------------------------------------------ |
+| `400`  | Email ya registrado        | `{"detail": "A user with this email already exists"}`                                                  |
+| `400`  | Contraseña demasiado larga | `{"detail": "Password cannot exceed 72 bytes in length"}`                                              |
+| `400`  | Datos inválidos            | `{"detail": "Invalid registration data"}`                                                              |
+| `422`  | Validación Pydantic        | `{"detail": [{"loc": ["body", "email"], "msg": "invalid email format", "type": "value_error.email"}]}` |
+
+##### POST /api/v1/auth/login
+
+| Código | Error                    | Ejemplo                                                                                            |
+| ------ | ------------------------ | -------------------------------------------------------------------------------------------------- |
+| `401`  | Credenciales incorrectas | `{"detail": "Incorrect email or password"}`                                                        |
+| `422`  | Validación Pydantic      | `{"detail": [{"loc": ["body", "email"], "msg": "field required", "type": "value_error.missing"}]}` |
+
+##### POST /api/v1/auth/refresh
+
+| Código | Error                  | Ejemplo                                                                                                    |
+| ------ | ---------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `401`  | Refresh token inválido | `{"detail": "Invalid refresh token"}`                                                                      |
+| `401`  | Usuario no encontrado  | `{"detail": "Invalid refresh token"}`                                                                      |
+| `422`  | Validación Pydantic    | `{"detail": [{"loc": ["body", "refresh_token"], "msg": "field required", "type": "value_error.missing"}]}` |
+
+---
+
+#### Proyectos
+
+##### POST /api/v1/projects
+
+| Código | Error                     | Ejemplo                                                                                                                                     |
+| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                                    |
+| `422`  | Validación Pydantic       | `{"detail": [{"loc": ["body", "titulo"], "msg": "ensure this value has at least 5 characters", "type": "value_error.any_str.min_length"}]}` |
+| `422`  | Validación del servicio   | `{"detail": "Invalid proyecto data"}`                                                                                                       |
+| `500`  | Error del servidor        | `{"detail": "Error creating proyecto: Database error"}`                                                                                     |
+
+##### GET /api/v1/projects/{project_id}
+
+| Código | Error                     | Ejemplo                                                                         |
+| ------ | ------------------------- | ------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                        |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}` |
+
+##### PATCH /api/v1/projects/{project_id}
+
+| Código | Error                     | Ejemplo                                                                                                                    |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                   |
+| `403`  | No eres el dueño          | `{"detail": "Forbidden - User is not the owner of this resource"}`                                                         |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                            |
+| `422`  | Validación Pydantic       | `{"detail": [{"loc": ["body", "bonita_case_id"], "msg": "string does not match regex", "type": "value_error.str.regex"}]}` |
+
+##### DELETE /api/v1/projects/{project_id}
+
+| Código | Error                     | Ejemplo                                                                         |
+| ------ | ------------------------- | ------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                        |
+| `403`  | No eres el dueño          | `{"detail": "You are not the owner of this project"}`                           |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}` |
+
+---
+
+#### Pedidos
+
+##### POST /api/v1/projects/{project_id}/etapas/{etapa_id}/pedidos
+
+| Código | Error                         | Ejemplo                                                                                                                |
+| ------ | ----------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante     | `{"detail": "Invalid or expired token"}`                                                                               |
+| `403`  | No eres el dueño del proyecto | `{"detail": "You are not the owner of this project"}`                                                                  |
+| `404`  | Proyecto no encontrado        | `{"detail": "Proyecto with id ... not found"}`                                                                         |
+| `404`  | Etapa no encontrada           | `{"detail": "Etapa with id ... not found in proyecto"}`                                                                |
+| `422`  | Validación Pydantic           | `{"detail": [{"loc": ["body", "tipo"], "msg": "value is not a valid enumeration member", "type": "type_error.enum"}]}` |
+
+##### GET /api/v1/projects/{project_id}/pedidos
+
+| Código | Error                     | Ejemplo                                                                                                             |
+| ------ | ------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                            |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id ... not found"}`                                                                      |
+| `422`  | Filtro estado inválido    | `{"detail": [{"loc": ["query", "estado"], "msg": "string does not match regex", "type": "value_error.str.regex"}]}` |
+
+##### DELETE /api/v1/pedidos/{pedido_id}
+
+| Código | Error                         | Ejemplo                                               |
+| ------ | ----------------------------- | ----------------------------------------------------- |
+| `401`  | Token inválido o faltante     | `{"detail": "Invalid or expired token"}`              |
+| `403`  | No eres el dueño del proyecto | `{"detail": "You are not the owner of this project"}` |
+| `404`  | Pedido no encontrado          | `{"detail": "Pedido with id ... not found"}`          |
+
+---
+
+#### Ofertas
+
+##### POST /api/v1/pedidos/{pedido_id}/ofertas
+
+| Código | Error                     | Ejemplo                                                                                                  |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                 |
+| `404`  | Pedido no encontrado      | `{"detail": "Pedido with id ... not found"}`                                                             |
+| `422`  | Validación Pydantic       | `{"detail": [{"loc": ["body", "descripcion"], "msg": "field required", "type": "value_error.missing"}]}` |
+
+##### GET /api/v1/pedidos/{pedido_id}/ofertas
+
+| Código | Error                         | Ejemplo                                               |
+| ------ | ----------------------------- | ----------------------------------------------------- |
+| `401`  | Token inválido o faltante     | `{"detail": "Invalid or expired token"}`              |
+| `403`  | No eres el dueño del proyecto | `{"detail": "You are not the owner of this project"}` |
+| `404`  | Pedido no encontrado          | `{"detail": "Pedido with id ... not found"}`          |
+
+##### POST /api/v1/ofertas/{oferta_id}/accept
+
+| Código | Error                         | Ejemplo                                                   |
+| ------ | ----------------------------- | --------------------------------------------------------- |
+| `401`  | Token inválido o faltante     | `{"detail": "Invalid or expired token"}`                  |
+| `403`  | No eres el dueño del proyecto | `{"detail": "You are not the owner of this project"}`     |
+| `404`  | Oferta no encontrada          | `{"detail": "Oferta with id ... not found"}`              |
+| `400`  | Pedido ya completado          | `{"detail": "Cannot accept oferta for completed pedido"}` |
+| `400`  | Pedido ya comprometido        | `{"detail": "Cannot accept oferta for committed pedido"}` |
+
+##### POST /api/v1/ofertas/{oferta_id}/reject
+
+| Código | Error                         | Ejemplo                                               |
+| ------ | ----------------------------- | ----------------------------------------------------- |
+| `401`  | Token inválido o faltante     | `{"detail": "Invalid or expired token"}`              |
+| `403`  | No eres el dueño del proyecto | `{"detail": "You are not the owner of this project"}` |
+| `404`  | Oferta no encontrada          | `{"detail": "Oferta with id ... not found"}`          |
+
+##### POST /api/v1/ofertas/{oferta_id}/confirmar-realizacion
+
+| Código | Error                           | Ejemplo                                                                                         |
+| ------ | ------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante       | `{"detail": "Invalid or expired token"}`                                                        |
+| `403`  | No eres el creador de la oferta | `{"detail": "You are not the creator of this oferta"}`                                          |
+| `404`  | Oferta no encontrada            | `{"detail": "Oferta with id ... not found"}`                                                    |
+| `400`  | Compromiso ya confirmado        | `{"detail": "This commitment has already been confirmed and marked as completado"}`             |
+| `400`  | Estado de pedido incorrecto     | `{"detail": "Cannot confirm realization. Pedido is in state pendiente, expected comprometido"}` |
+
+##### GET /api/v1/ofertas/mis-compromisos
+
+| Código | Error                     | Ejemplo                                                                                                                          |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                         |
+| `422`  | Filtro estado inválido    | `{"detail": [{"loc": ["query", "estado_pedido"], "msg": "value is not a valid enumeration member", "type": "type_error.enum"}]}` |
+
+---
+
+### Ejemplos de Respuestas de Error
+
+#### Error 401 - Sin Autenticación
 
 ```json
 {
-	"detail": "Invalid token"
+	"detail": "Invalid or expired token"
 }
 ```
 
-**Error 403 - No Autorizado**
+#### Error 403 - Sin Permiso
 
 ```json
 {
-	"detail": "Not authorized"
+	"detail": "You are not the owner of this project"
 }
 ```
 
-**Error 422 - Validación**
+#### Error 404 - No Encontrado
+
+```json
+{
+	"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"
+}
+```
+
+#### Error 422 - Validación Fallida
 
 ```json
 {
@@ -1791,11 +2015,58 @@ Verá todas sus ofertas aceptadas con estado `aceptada` y sus pedidos asociados.
 		{
 			"loc": ["body", "email"],
 			"msg": "invalid email format",
-			"type": "value_error"
+			"type": "value_error.email"
+		},
+		{
+			"loc": ["body", "password"],
+			"msg": "field required",
+			"type": "value_error.missing"
 		}
 	]
 }
 ```
+
+#### Error 400 - Regla de Negocio Violada
+
+```json
+{
+	"detail": "A user with this email already exists"
+}
+```
+
+#### Error 500 - Error del Servidor
+
+```json
+{
+	"detail": "Error creating proyecto: Unexpected database error"
+}
+```
+
+---
+
+### Cómo Interpretar Errores 422 (Validación)
+
+Los errores de validación retornan un array de objetos con:
+
+-   **loc**: Ubicación del error (ej: `["body", "email"]` significa error en el campo email del body)
+-   **msg**: Mensaje descriptivo del error
+-   **type**: Tipo de error Pydantic
+
+**Ejemplo completo:**
+
+```json
+{
+	"detail": [
+		{
+			"loc": ["body", "titulo"],
+			"msg": "ensure this value has at least 5 characters",
+			"type": "value_error.any_str.min_length"
+		}
+	]
+}
+```
+
+**Solución**: El campo `titulo` debe tener al menos 5 caracteres.
 
 ---
 
@@ -1931,8 +2202,6 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/auth/login \
 -   **Swagger Interactivo:** https://project-planning-cloud-api.onrender.com/docs
 -   **Health Check:** https://project-planning-cloud-api.onrender.com/health
 -   **OpenAPI JSON:** https://project-planning-cloud-api.onrender.com/openapi.json
-
-Para más detalles técnicos: revisar [CLAUDE.md](CLAUDE.md)
 
 ---
 

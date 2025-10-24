@@ -11,6 +11,7 @@ from app.api.deps.auth import get_current_user
 from app.db.session import get_db
 from app.models.pedido import EstadoPedido
 from app.models.user import User
+from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
 from app.schemas.pedido import PedidoCreate, PedidoResponse
 from app.services.pedido_service import PedidoService
 
@@ -22,6 +23,57 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
     "/projects/{project_id}/etapas/{etapa_id}/pedidos",
     response_model=PedidoResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the owner of the project",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "You are not the owner of this project"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Project or Etapa does not exist",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "project_not_found": {
+                            "summary": "Project not found",
+                            "value": {
+                                "detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                            },
+                        },
+                        "etapa_not_found": {
+                            "summary": "Etapa not found",
+                            "value": {
+                                "detail": "Etapa with id 123e4567-e89b-12d3-a456-426614174000 not found in proyecto"
+                            },
+                        },
+                    }
+                }
+            },
+        },
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid pedido data",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["body", "tipo"],
+                                "msg": "value is not a valid enumeration member",
+                                "type": "type_error.enum",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
 )
 async def create_pedido(
     project_id: UUID,
@@ -49,6 +101,37 @@ async def create_pedido(
 @router.get(
     "/projects/{project_id}/pedidos",
     response_model=List[PedidoResponse],
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Project does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid estado filter value",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["query", "estado"],
+                                "msg": "string does not match regex",
+                                "type": "value_error.str.regex",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
 )
 async def list_project_pedidos(
     project_id: UUID,
@@ -78,6 +161,29 @@ async def list_project_pedidos(
 @router.delete(
     "/pedidos/{pedido_id}",
     status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the owner of the project",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "You are not the owner of this project"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Pedido does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Pedido with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+    },
 )
 async def delete_pedido(
     pedido_id: UUID,

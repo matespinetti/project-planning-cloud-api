@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.deps.auth import get_current_user
 from app.db.session import get_db
 from app.models.user import User
+from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
 from app.schemas.oferta import (
     OfertaCreate,
     OfertaResponse,
@@ -27,6 +28,37 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
     "/pedidos/{pedido_id}/ofertas",
     response_model=OfertaResponse,
     status_code=status.HTTP_201_CREATED,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Pedido does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Pedido with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid oferta data",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["body", "descripcion"],
+                                "msg": "field required",
+                                "type": "value_error.missing",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
 )
 async def create_oferta(
     pedido_id: UUID,
@@ -53,6 +85,29 @@ async def create_oferta(
 @router.get(
     "/pedidos/{pedido_id}/ofertas",
     response_model=List[OfertaWithUserResponse],
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the owner of the project",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "You are not the owner of this project"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Pedido does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Pedido with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+    },
 )
 async def list_ofertas_for_pedido(
     pedido_id: UUID,
@@ -83,6 +138,47 @@ async def list_ofertas_for_pedido(
 @router.post(
     "/ofertas/{oferta_id}/accept",
     response_model=OfertaResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the owner of the project",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "You are not the owner of this project"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Oferta does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Oferta with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Cannot accept oferta due to business rules",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "already_completed": {
+                            "summary": "Pedido already completed",
+                            "value": {"detail": "Cannot accept oferta for completed pedido"},
+                        },
+                        "already_committed": {
+                            "summary": "Pedido already committed",
+                            "value": {"detail": "Cannot accept oferta for committed pedido"},
+                        },
+                    }
+                }
+            },
+        },
+    },
 )
 async def accept_oferta(
     oferta_id: UUID,
@@ -113,6 +209,29 @@ async def accept_oferta(
 @router.post(
     "/ofertas/{oferta_id}/reject",
     response_model=OfertaResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the owner of the project",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "You are not the owner of this project"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Oferta does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Oferta with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+    },
 )
 async def reject_oferta(
     oferta_id: UUID,
@@ -134,6 +253,51 @@ async def reject_oferta(
 @router.post(
     "/ofertas/{oferta_id}/confirmar-realizacion",
     response_model=OfertaConfirmacionResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the creator of the oferta",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "You are not the creator of this oferta"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Oferta does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Oferta with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Cannot confirm realization due to business rules",
+            "content": {
+                "application/json": {
+                    "examples": {
+                        "already_completed": {
+                            "summary": "Commitment already confirmed",
+                            "value": {
+                                "detail": "This commitment has already been confirmed and marked as completado"
+                            },
+                        },
+                        "wrong_state": {
+                            "summary": "Wrong pedido state",
+                            "value": {
+                                "detail": "Cannot confirm realization. Pedido is in state pendiente, expected comprometido"
+                            },
+                        },
+                    }
+                }
+            },
+        },
+    },
 )
 async def confirmar_realizacion_oferta(
     oferta_id: UUID,
@@ -168,6 +332,26 @@ async def confirmar_realizacion_oferta(
 @router.get(
     "/ofertas/mis-compromisos",
     response_model=List[OfertaWithPedidoResponse],
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid estado_pedido filter value",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["query", "estado_pedido"],
+                                "msg": "value is not a valid enumeration member",
+                                "type": "type_error.enum",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
 )
 async def get_my_commitments(
     estado_pedido: str = None,
