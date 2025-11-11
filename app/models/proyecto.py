@@ -15,13 +15,13 @@ import enum as py_enum
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.etapa import Etapa
+    from app.models.observacion import Observacion
 
 
 class EstadoProyecto(str, py_enum.Enum):
-    """Project status enumeration."""
-    BORRADOR = "borrador"
+    """Project status enumeration (simplified to 3 states)."""
+
     EN_PLANIFICACION = "en_planificacion"
-    BUSCANDO_FINANCIAMIENTO = "buscando_financiamiento"
     EN_EJECUCION = "en_ejecucion"
     COMPLETO = "completo"
 
@@ -73,9 +73,15 @@ class Proyecto(Base):
         onupdate=func.now(),
         nullable=False,
     )
+    fecha_completitud: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="proyectos")
     etapas: Mapped[List["Etapa"]] = relationship(
         back_populates="proyecto", cascade="all, delete-orphan", lazy="joined"
+    )
+    observaciones: Mapped[List["Observacion"]] = relationship(
+        back_populates="proyecto", cascade="all, delete-orphan"
     )

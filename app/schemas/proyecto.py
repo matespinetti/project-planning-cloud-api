@@ -74,3 +74,51 @@ class ProyectoResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     etapas: List[EtapaResponse] = []
+
+
+class PedidoPendienteInfo(BaseModel):
+    """Schema for incomplete pedido information in error responses."""
+
+    pedido_id: UUID
+    etapa_nombre: str
+    tipo: str
+    estado: str
+    descripcion: str
+
+
+class ProyectoStartResponse(BaseModel):
+    """Schema for successful project start response."""
+
+    id: UUID
+    titulo: str
+    estado: str
+    message: str
+
+
+class ProyectoListItem(BaseModel):
+    """Lightweight project summary for list view (no nested relationships)."""
+
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    user_id: UUID
+    titulo: str
+    descripcion: str
+    tipo: str
+    pais: str
+    provincia: str
+    ciudad: str
+    barrio: Optional[str] = None
+    estado: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PaginatedProyectoResponse(BaseModel):
+    """Paginated response with metadata."""
+
+    items: List[ProyectoListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

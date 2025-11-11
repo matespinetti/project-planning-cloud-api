@@ -15,10 +15,11 @@
 6. [Endpoints de Proyectos](#endpoints-de-proyectos)
 7. [Endpoints de Pedidos](#endpoints-de-pedidos)
 8. [Endpoints de Ofertas](#endpoints-de-ofertas)
-9. [Enumeraciones](#enumeraciones)
-10. [Flujo Completo de Ejemplo](#flujo-completo-de-ejemplo)
-11. [Códigos de Error](#códigos-de-error)
-12. [Instrucciones para Pruebas](#instrucciones-para-pruebas)
+9. [Endpoints de Observaciones](#endpoints-de-observaciones)
+10. [Enumeraciones](#enumeraciones)
+11. [Flujo Completo de Ejemplo](#flujo-completo-de-ejemplo)
+12. [Códigos de Error](#códigos-de-error)
+13. [Instrucciones para Pruebas](#instrucciones-para-pruebas)
 
 ---
 
@@ -171,14 +172,14 @@ Crea una nueva cuenta de usuario en el sistema.
 
 #### Parámetros
 
-| Campo      | Tipo   | Requerido | Descripción            | Restricciones                  |
-| ---------- | ------ | --------- | ---------------------- | ------------------------------ |
-| `email`    | string | Sí        | Email del usuario      | Debe ser único, formato válido |
-| `password` | string | Sí        | Contraseña             | Mínimo 8 caracteres            |
-| `nombre`   | string | Sí        | Nombre del usuario     | -                              |
-| `apellido` | string | Sí        | Apellido del usuario   | -                              |
-| `ong`      | string | Sí        | Nombre de organización | -                              |
-| `role`     | enum   | No        | Rol del usuario        | `MEMBER` (default) o `COUNCIL` |
+| Campo      | Tipo   | Requerido | Descripción                                              |
+| ---------- | ------ | --------- | -------------------------------------------------------- |
+| `email`    | string | Sí        | Email del usuario (debe ser único, formato válido)       |
+| `password` | string | Sí        | Contraseña (mínimo 8 caracteres)                         |
+| `nombre`   | string | Sí        | Nombre del usuario                                       |
+| `apellido` | string | Sí        | Apellido del usuario                                     |
+| `ong`      | string | Sí        | Nombre de organización                                   |
+| `role`     | enum   | No        | Rol del usuario (`MEMBER` por defecto, o `COUNCIL`)      |
 
 #### Body de Prueba
 
@@ -393,19 +394,19 @@ Crea un nuevo proyecto con etapas y pedidos anidados en una sola transacción.
 
 #### Parámetros
 
-| Campo                        | Tipo    | Requerido | Descripción              |
-| ---------------------------- | ------- | --------- | ------------------------ | --------------------------------------- |
-| `titulo`                     | string  | Sí        | Título del proyecto      | Mínimo 5 caracteres                     |
-| `descripcion`                | string  | Sí        | Descripción detallada    | Mínimo 20 caracteres                    |
-| `tipo`                       | string  | Sí        | Tipo de proyecto         | Ej: "Infraestructura", "Social"         |
-| `pais`                       | string  | Sí        | País                     | Ej: "Argentina"                         |
-| `provincia`                  | string  | Sí        | Provincia                | Ej: "Buenos Aires"                      |
-| `ciudad`                     | string  | Sí        | Ciudad                   | Ej: "La Plata"                          |
-| `barrio`                     | string  | No        | Barrio/Localidad         | Opcional                                |
-| `estado`                     | enum    | No        | Estado del proyecto      | Default: `en_planificacion` (ver enums) |
-| `bonita_case_id`             | string  | No        | ID de caso Bonita        | Opcional, para integración              |
-| `bonita_process_instance_id` | integer | No        | ID instancia Bonita      | Opcional                                |
-| `etapas`                     | array   | No        | Array de etapas anidadas | Ver estructura abajo                    |
+| Campo                        | Tipo    | Requerido | Descripción                                                          |
+| ---------------------------- | ------- | --------- | -------------------------------------------------------------------- |
+| `titulo`                     | string  | Sí        | Título del proyecto (mínimo 5 caracteres)                            |
+| `descripcion`                | string  | Sí        | Descripción detallada (mínimo 20 caracteres)                         |
+| `tipo`                       | string  | Sí        | Tipo de proyecto (ej: "Infraestructura", "Social")                   |
+| `pais`                       | string  | Sí        | País (ej: "Argentina")                                               |
+| `provincia`                  | string  | Sí        | Provincia (ej: "Buenos Aires")                                       |
+| `ciudad`                     | string  | Sí        | Ciudad (ej: "La Plata")                                              |
+| `barrio`                     | string  | No        | Barrio/Localidad (opcional)                                          |
+| `estado`                     | enum    | No        | Estado del proyecto (default: `en_planificacion`, ver enumeraciones) |
+| `bonita_case_id`             | string  | No        | ID de caso Bonita (opcional, para integración)                       |
+| `bonita_process_instance_id` | integer | No        | ID instancia Bonita (opcional)                                       |
+| `etapas`                     | array   | No        | Array de etapas anidadas (ver estructura abajo)                      |
 
 #### Estructura de Etapas
 
@@ -817,6 +818,129 @@ curl -X DELETE https://project-planning-cloud-api.onrender.com/api/v1/projects/$
 
 ---
 
+### 5️⃣ Iniciar Proyecto
+
+Inicia un proyecto cambiando su estado de `en_planificacion` a `en_ejecucion`.
+
+**Método:** `POST`
+**Ruta:** `/api/v1/projects/{project_id}/start`
+**Autenticación:** Requerida (Bearer Token)
+**Código de Respuesta:** `200 OK`
+**Restricción:** Solo el propietario del proyecto puede iniciarlo
+**Validación:** Todos los pedidos de todas las etapas deben estar en estado `COMPLETADO`
+
+#### Path Parameters
+
+| Parámetro    | Tipo | Descripción              |
+| ------------ | ---- | ------------------------ |
+| `project_id` | UUID | ID del proyecto a iniciar |
+
+#### Validaciones
+
+Para iniciar un proyecto, se deben cumplir estas condiciones:
+
+1. **Estado actual:** El proyecto debe estar en estado `en_planificacion`
+2. **Pedidos completados:** TODOS los pedidos de TODAS las etapas deben estar en estado `COMPLETADO`
+3. **Propiedad:** Solo el dueño del proyecto puede iniciarlo
+
+Si algún pedido no está completado (está en `PENDIENTE` o `COMPROMETIDO`), el endpoint retorna error 400 con la lista detallada de pedidos pendientes.
+
+#### Response Exitoso (200)
+
+```json
+{
+	"id": "123e4567-e89b-12d3-a456-426614174000",
+	"titulo": "Centro Comunitario La Plata",
+	"estado": "en_ejecucion",
+	"message": "Proyecto iniciado exitosamente"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                         | Ejemplo de Error                                                                                                                  | Solución                                                              |
+| ------ | ----------------------------------- | --------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante           | `{"detail": "Invalid or expired token"}`                                                                                          | Proporciona un access_token válido                                    |
+| `403`  | No eres el propietario              | `{"detail": "Only the project owner can perform this action"}`                                                                    | Solo el dueño del proyecto puede iniciarlo                            |
+| `404`  | Proyecto no encontrado              | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                                   | Verifica que el project_id sea correcto                               |
+| `400`  | Estado incorrecto                   | `{"detail": "Project can only be started from 'en_planificacion' state. Current state: en_ejecucion"}`                            | El proyecto ya fue iniciado o está en otro estado                     |
+| `400`  | Pedidos no completados (ver abajo)  | Ver ejemplo detallado abajo                                                                                                       | Asegúrate de que todos los pedidos tengan ofertas aceptadas y confirmadas |
+
+#### Error 400 - Pedidos No Completados (Ejemplo Detallado)
+
+Cuando hay pedidos sin completar, el error incluye la lista completa con detalles:
+
+```json
+{
+	"detail": {
+		"message": "No se puede iniciar el proyecto. 3 pedidos no están completados",
+		"pedidos_pendientes": [
+			{
+				"pedido_id": "323e4567-e89b-12d3-a456-426614174222",
+				"etapa_nombre": "Fase 1 - Cimientos",
+				"tipo": "economico",
+				"estado": "COMPROMETIDO",
+				"descripcion": "Presupuesto para materiales de cimentación"
+			},
+			{
+				"pedido_id": "323e4567-e89b-12d3-a456-426614174223",
+				"etapa_nombre": "Fase 1 - Cimientos",
+				"tipo": "mano_obra",
+				"estado": "PENDIENTE",
+				"descripcion": "Mano de obra para excavación y cimientos"
+			},
+			{
+				"pedido_id": "323e4567-e89b-12d3-a456-426614174224",
+				"etapa_nombre": "Fase 2 - Estructura",
+				"tipo": "materiales",
+				"estado": "PENDIENTE",
+				"descripcion": "Acero y hormigón para estructura"
+			}
+		]
+	}
+}
+```
+
+#### Flujo para Iniciar un Proyecto
+
+1. **Crear proyecto** con etapas y pedidos (POST /api/v1/projects)
+2. **Usuarios ofertan** en los pedidos (POST /api/v1/pedidos/{pedido_id}/ofertas)
+3. **Propietario acepta ofertas** (POST /api/v1/ofertas/{oferta_id}/accept) → Pedido pasa a `COMPROMETIDO`
+4. **Oferentes confirman realización** (POST /api/v1/ofertas/{oferta_id}/confirmar-realizacion) → Pedido pasa a `COMPLETADO`
+5. **Cuando TODOS los pedidos están `COMPLETADO`**, el propietario puede iniciar el proyecto
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "POST /api/v1/projects/{project_id}/start"
+3. Click "Try it out"
+4. Pega el UUID del proyecto en "project_id"
+5. Click "Execute"
+
+**Opción 2: cURL**
+
+```bash
+TOKEN="tu_access_token_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/start \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Resultado esperado:**
+
+-   Status code: `200 OK`
+-   Body: JSON con id, titulo, estado y mensaje de éxito
+
+**Si hay pedidos pendientes:**
+
+-   Status code: `400 Bad Request`
+-   Body: JSON con mensaje y lista de pedidos no completados
+
+---
+
 ## Endpoints de Pedidos
 
 ### 1️⃣ Crear Pedido para Etapa Existente
@@ -1087,10 +1211,10 @@ Crea una nueva oferta para un pedido específico. Un usuario propone sus servici
 
 #### Parámetros
 
-| Campo            | Tipo   | Requerido | Descripción               |
-| ---------------- | ------ | --------- | ------------------------- | ----------------------------- |
-| `descripcion`    | string | Sí        | Descripción de la oferta  | Mínimo 10 caracteres          |
-| `monto_ofrecido` | float  | No        | Monto ofrecido (opcional) | Para comparar con presupuesto |
+| Campo            | Tipo   | Requerido | Descripción                                                 |
+| ---------------- | ------ | --------- | ----------------------------------------------------------- |
+| `descripcion`    | string | Sí        | Descripción de la oferta (mínimo 10 caracteres)             |
+| `monto_ofrecido` | float  | No        | Monto ofrecido (opcional, para comparar con presupuesto)    |
 
 #### Body de Prueba
 
@@ -1510,6 +1634,346 @@ curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/ofertas/mis-
 
 ---
 
+## Endpoints de Observaciones
+
+El módulo de **observaciones** permite al consejo directivo realizar seguimiento y control de proyectos en ejecución. Los miembros del consejo pueden crear observaciones que deben ser resueltas por los ejecutores de proyecto dentro de 5 días, con marcado automático como vencidas si no se resuelven a tiempo.
+
+### 1️⃣ Crear Observación para Proyecto
+
+Crea una nueva observación sobre un proyecto en ejecución. **Solo miembros del consejo (role=COUNCIL)** pueden crear observaciones.
+
+**Método:** `POST`
+**Ruta:** `/api/v1/projects/{project_id}/observaciones`
+**Autenticación:** Requerida (Bearer Token)
+**Autorización:** Solo usuarios con role=COUNCIL
+**Código de Respuesta:** `201 Created`
+**Restricción:** El proyecto debe estar en estado `en_ejecucion`
+
+#### Path Parameters
+
+| Parámetro    | Tipo | Descripción                          |
+| ------------ | ---- | ------------------------------------ |
+| `project_id` | UUID | ID del proyecto a observar           |
+
+#### Parámetros
+
+| Campo         | Tipo   | Requerido | Descripción                                              |
+| ------------- | ------ | --------- | -------------------------------------------------------- |
+| `descripcion` | string | Sí        | Descripción de la observación (mínimo 10 caracteres)     |
+
+#### Comportamiento Automático
+
+- **Fecha límite:** Se establece automáticamente a 5 días desde la creación
+- **Estado inicial:** `pendiente`
+- **Vencimiento:** Si no se resuelve antes de la fecha límite, se marca automáticamente como `vencida`
+
+#### Body de Prueba
+
+```json
+{
+	"descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte. Por favor revisar y ajustar el presupuesto según lo conversado en la reunión del consejo."
+}
+```
+
+#### Response Exitoso (201)
+
+```json
+{
+	"id": "623e4567-e89b-12d3-a456-426614174555",
+	"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+	"council_user_id": "550e8400-e29b-41d4-a716-446655440003",
+	"descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte. Por favor revisar y ajustar el presupuesto según lo conversado en la reunión del consejo.",
+	"estado": "pendiente",
+	"fecha_limite": "2024-10-27",
+	"respuesta": null,
+	"fecha_resolucion": null,
+	"created_at": "2024-10-22T10:00:00+00:00",
+	"updated_at": "2024-10-22T10:00:00+00:00"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                              | Ejemplo de Error                                                                                                              | Solución                                               |
+| ------ | ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| `401`  | Token inválido o faltante                | `{"detail": "Invalid or expired token"}`                                                                                      | Proporciona un access_token válido                     |
+| `403`  | Usuario no es del consejo                | `{"detail": "Only council members can create observations"}`                                                                  | Solo usuarios con role=COUNCIL pueden crear observaciones |
+| `404`  | Proyecto no encontrado                   | `{"detail": "Proyecto with id ... not found"}`                                                                                | Verifica que el project_id sea correcto                |
+| `400`  | Proyecto no está en ejecución            | `{"detail": "Observations can only be created for projects in 'en_ejecucion' state. Current state: en_planificacion"}`        | El proyecto debe estar en estado `en_ejecucion`        |
+| `422`  | Validación fallida                       | `{"detail": [{"loc": ["body", "descripcion"], "msg": "ensure this value has at least 10 characters", "type": "value_error"}]}` | La descripción debe tener al menos 10 caracteres       |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. **Importante:** Primero autentícate con un usuario COUNCIL
+3. Busca "POST /api/v1/projects/{project_id}/observaciones"
+4. Click "Try it out"
+5. Pega el UUID del proyecto (debe estar en estado `en_ejecucion`)
+6. Completa el JSON con los datos del ejemplo
+7. Click "Execute"
+
+**Opción 2: cURL**
+
+```bash
+# Token de un usuario COUNCIL
+TOKEN="tu_access_token_de_consejo_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/observaciones \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte. Por favor revisar y ajustar."
+  }'
+```
+
+---
+
+### 2️⃣ Listar Observaciones de Proyecto
+
+Obtiene todas las observaciones de un proyecto, con información del consejero que las creó. Las observaciones pendientes se verifican automáticamente y se marcan como vencidas si han pasado más de 5 días.
+
+**Método:** `GET`
+**Ruta:** `/api/v1/projects/{project_id}/observaciones`
+**Autenticación:** Requerida (Bearer Token)
+**Código de Respuesta:** `200 OK`
+
+#### Path Parameters
+
+| Parámetro    | Tipo | Descripción            |
+| ------------ | ---- | ---------------------- |
+| `project_id` | UUID | ID del proyecto        |
+
+#### Query Parameters (Opcionales)
+
+| Parámetro | Tipo   | Descripción                                         |
+| --------- | ------ | --------------------------------------------------- |
+| `estado`  | string | Filtrar por estado: `pendiente`, `resuelta`, `vencida` |
+
+#### Comportamiento Automático
+
+- **Verificación de vencimiento:** Al listar, se verifica cada observación pendiente
+- **Actualización automática:** Si han pasado más de 5 días desde la creación, el estado cambia automáticamente de `pendiente` a `vencida`
+- **Ordenamiento:** Los resultados se ordenan por fecha de creación (más recientes primero)
+
+#### Response Exitoso (200)
+
+```json
+[
+	{
+		"id": "623e4567-e89b-12d3-a456-426614174555",
+		"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+		"council_user_id": "550e8400-e29b-41d4-a716-446655440003",
+		"descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte.",
+		"estado": "pendiente",
+		"fecha_limite": "2024-10-27",
+		"respuesta": null,
+		"fecha_resolucion": null,
+		"created_at": "2024-10-22T10:00:00+00:00",
+		"updated_at": "2024-10-22T10:00:00+00:00",
+		"council_user_email": "consejo@ong.org",
+		"council_user_ong": "ONG Central",
+		"council_user_nombre": "Carlos"
+	},
+	{
+		"id": "723e4567-e89b-12d3-a456-426614174666",
+		"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+		"council_user_id": "550e8400-e29b-41d4-a716-446655440003",
+		"descripcion": "El cronograma de la etapa 2 parece muy ajustado. Considerar ampliar plazos.",
+		"estado": "resuelta",
+		"fecha_limite": "2024-10-20",
+		"respuesta": "Hemos revisado el cronograma y agregado 2 semanas adicionales a la etapa 2 según su recomendación.",
+		"fecha_resolucion": "2024-10-19T14:30:00+00:00",
+		"created_at": "2024-10-15T10:00:00+00:00",
+		"updated_at": "2024-10-19T14:30:00+00:00",
+		"council_user_email": "consejo@ong.org",
+		"council_user_ong": "ONG Central",
+		"council_user_nombre": "Carlos"
+	}
+]
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                                          | Solución                               |
+| ------ | ------------------------- | --------------------------------------------------------------------------------------------------------- | -------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                  | Proporciona un access_token válido     |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id ... not found"}`                                                            | Verifica que el project_id sea correcto |
+| `400`  | Filtro de estado inválido | `{"detail": "Invalid estado filter. Must be one of: ['pendiente', 'resuelta', 'vencida']"}`              | Usa un valor válido para el filtro     |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "GET /api/v1/projects/{project_id}/observaciones"
+3. Click "Try it out"
+4. Pega el UUID del proyecto
+5. (Opcional) Selecciona un filtro de estado
+6. Click "Execute"
+
+**Opción 2: cURL**
+
+```bash
+TOKEN="tu_access_token_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+# Todas las observaciones
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/observaciones \
+  -H "Authorization: Bearer $TOKEN"
+
+# Solo observaciones pendientes
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/observaciones?estado=pendiente" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Solo observaciones vencidas
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/observaciones?estado=vencida" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 3️⃣ Resolver Observación
+
+Permite al ejecutor del proyecto (dueño) resolver una observación proporcionando una respuesta. Se puede resolver incluso si está vencida.
+
+**Método:** `POST`
+**Ruta:** `/api/v1/observaciones/{observacion_id}/resolve`
+**Autenticación:** Requerida (Bearer Token)
+**Autorización:** Solo el dueño del proyecto asociado
+**Código de Respuesta:** `200 OK`
+
+#### Path Parameters
+
+| Parámetro        | Tipo | Descripción                   |
+| ---------------- | ---- | ----------------------------- |
+| `observacion_id` | UUID | ID de la observación a resolver |
+
+#### Parámetros
+
+| Campo      | Tipo   | Requerido | Descripción                                          |
+| ---------- | ------ | --------- | ---------------------------------------------------- |
+| `respuesta` | string | Sí        | Respuesta del ejecutor (mínimo 10 caracteres)        |
+
+#### Comportamiento
+
+- **Cambio de estado:** Cambia automáticamente a `resuelta`
+- **Timestamp:** Registra fecha y hora exacta de resolución
+- **Vencidas:** Se pueden resolver observaciones que ya estén vencidas
+- **Irreversible:** Una vez resuelta, no se puede volver a estado pendiente
+
+#### Body de Prueba
+
+```json
+{
+	"respuesta": "Gracias por la observación. He revisado el presupuesto y agregado una partida para costos de transporte de $500 USD. El documento actualizado está adjunto en la sección de archivos del proyecto. Además, he actualizado el cronograma de materiales para incluir los tiempos de entrega."
+}
+```
+
+#### Response Exitoso (200)
+
+```json
+{
+	"id": "623e4567-e89b-12d3-a456-426614174555",
+	"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+	"council_user_id": "550e8400-e29b-41d4-a716-446655440003",
+	"descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte.",
+	"estado": "resuelta",
+	"fecha_limite": "2024-10-27",
+	"respuesta": "Gracias por la observación. He revisado el presupuesto y agregado una partida para costos de transporte de $500 USD.",
+	"fecha_resolucion": "2024-10-24T16:45:00+00:00",
+	"created_at": "2024-10-22T10:00:00+00:00",
+	"updated_at": "2024-10-24T16:45:00+00:00"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                      | Ejemplo de Error                                                                                          | Solución                                        |
+| ------ | -------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `401`  | Token inválido o faltante        | `{"detail": "Invalid or expired token"}`                                                                  | Proporciona un access_token válido              |
+| `403`  | No eres el dueño del proyecto    | `{"detail": "Only the project executor (owner) can resolve observations"}`                                | Solo el dueño del proyecto puede resolver       |
+| `404`  | Observación no encontrada        | `{"detail": "Observacion with id ... not found"}`                                                         | Verifica que el observacion_id sea correcto     |
+| `400`  | Observación ya resuelta          | `{"detail": "Observacion is already resolved"}`                                                           | Esta observación ya fue resuelta anteriormente  |
+| `422`  | Validación fallida               | `{"detail": [{"loc": ["body", "respuesta"], "msg": "ensure this value has at least 10 characters"}]}`     | La respuesta debe tener al menos 10 caracteres  |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. **Importante:** Autentícate con el usuario dueño del proyecto
+3. Busca "POST /api/v1/observaciones/{observacion_id}/resolve"
+4. Click "Try it out"
+5. Pega el UUID de la observación
+6. Completa el JSON con tu respuesta
+7. Click "Execute"
+
+**Opción 2: cURL**
+
+```bash
+# Token del dueño del proyecto
+TOKEN="tu_access_token_de_ejecutor_aqui"
+OBSERVACION_ID="623e4567-e89b-12d3-a456-426614174555"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/observaciones/$OBSERVACION_ID/resolve \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "respuesta": "Gracias por la observación. He revisado el presupuesto y agregado una partida para costos de transporte de $500 USD. El documento actualizado está disponible en la sección de archivos."
+  }'
+```
+
+---
+
+### Flujo Completo: Observaciones
+
+Este es el flujo típico de trabajo con observaciones:
+
+```
+1. CONSEJO CREA OBSERVACIÓN
+   POST /api/v1/projects/{id}/observaciones
+   • Requiere role=COUNCIL
+   • Proyecto debe estar en 'en_ejecucion'
+   • Se crea con estado 'pendiente'
+   • Fecha límite = hoy + 5 días
+
+2. EJECUTOR LISTA OBSERVACIONES
+   GET /api/v1/projects/{id}/observaciones?estado=pendiente
+   • Ve todas las observaciones pendientes
+   • Observaciones vencidas aparecen automáticamente marcadas
+
+3. EJECUTOR RESUELVE OBSERVACIÓN
+   POST /api/v1/observaciones/{id}/resolve
+   • Requiere ser dueño del proyecto
+   • Proporciona respuesta detallada
+   • Estado cambia a 'resuelta'
+   • Se registra timestamp de resolución
+
+4. CONSEJO VERIFICA RESOLUCIÓN
+   GET /api/v1/projects/{id}/observaciones?estado=resuelta
+   • Puede ver la respuesta del ejecutor
+   • Confirma que la observación fue atendida
+```
+
+### Estados de Observaciones
+
+| Estado      | Descripción                                                       | Transición                                |
+| ----------- | ----------------------------------------------------------------- | ----------------------------------------- |
+| `pendiente` | Observación creada, esperando respuesta del ejecutor              | Creación inicial                          |
+| `vencida`   | Observación pendiente que superó los 5 días sin resolverse        | Automático (al listar o consultar)        |
+| `resuelta`  | Observación respondida por el ejecutor del proyecto               | Manual (ejecutor resuelve)                |
+
+**Nota importante sobre el vencimiento:**
+- Las observaciones NO cambian de estado automáticamente en la base de datos cada 5 días
+- La verificación ocurre **al momento de listar o consultar** la observación
+- Si una observación tiene más de 5 días sin resolver, se marca como `vencida` en ese momento
+- Esto optimiza el rendimiento evitando procesos en background
+
+---
+
 ## Enumeraciones
 
 ### EstadoProyecto
@@ -1604,6 +2068,40 @@ Estados disponibles para las ofertas:
 "pendiente"     # Recién creada, esperando decisión (default)
 "aceptada"      # Proyecto aceptó la oferta
 "rechazada"     # Proyecto rechazó la oferta
+```
+
+---
+
+### EstadoObservacion
+
+Estados disponibles para las observaciones:
+
+```python
+"pendiente"  # Observación creada, esperando resolución (default)
+"vencida"    # Observación pendiente que superó los 5 días sin resolver
+"resuelta"   # Observación respondida por el ejecutor del proyecto
+```
+
+**Flujo de estado:**
+
+```
+PENDIENTE → (automático si >5 días) → VENCIDA
+PENDIENTE → (ejecutor resuelve) → RESUELTA
+VENCIDA → (ejecutor resuelve) → RESUELTA
+```
+
+**Notas importantes:**
+- El cambio de `pendiente` a `vencida` ocurre **automáticamente** al listar o consultar observaciones
+- Las observaciones `vencidas` aún pueden ser resueltas por el ejecutor
+- Una vez `resuelta`, el estado no puede cambiar
+
+Ejemplo de uso:
+
+```json
+{
+	"estado": "pendiente",
+	"fecha_limite": "2024-10-27"
+}
 ```
 
 ---
@@ -1893,6 +2391,16 @@ Esta sección describe **todos los códigos de error posibles** que la API puede
 | `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                        |
 | `403`  | No eres el dueño          | `{"detail": "You are not the owner of this project"}`                           |
 | `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}` |
+
+##### POST /api/v1/projects/{project_id}/start
+
+| Código | Error                      | Ejemplo                                                                                                                                                                                                                                                                                                     |
+| ------ | -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante  | `{"detail": "Invalid or expired token"}`                                                                                                                                                                                                                                                                    |
+| `403`  | No eres el dueño           | `{"detail": "Only the project owner can perform this action"}`                                                                                                                                                                                                                                              |
+| `404`  | Proyecto no encontrado     | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                                                                                                                                                                                                             |
+| `400`  | Estado incorrecto          | `{"detail": "Project can only be started from 'en_planificacion' state. Current state: en_ejecucion"}`                                                                                                                                                                                                      |
+| `400`  | Pedidos no completados     | `{"detail": {"message": "No se puede iniciar el proyecto. 3 pedidos no están completados", "pedidos_pendientes": [{"pedido_id": "323e4567...", "etapa_nombre": "Fase 1", "tipo": "economico", "estado": "COMPROMETIDO", "descripcion": "Presupuesto para materiales de cimentación"}]}}`                  |
 
 ---
 

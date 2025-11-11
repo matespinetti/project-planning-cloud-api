@@ -14,6 +14,7 @@ from app.db.base import Base
 if TYPE_CHECKING:
     from app.models.proyecto import Proyecto
     from app.models.oferta import Oferta
+    from app.models.observacion import Observacion
 
 
 class UserRole(str, py_enum.Enum):
@@ -55,6 +56,9 @@ class User(Base):
     )
     ofertas: Mapped[List["Oferta"]] = relationship(
         back_populates="user", cascade="all, delete-orphan"
+    )
+    observaciones: Mapped[List["Observacion"]] = relationship(
+        back_populates="council_user", cascade="all, delete-orphan"
     )
 
     def __repr__(self) -> str:  # pragma: no cover - string helper
