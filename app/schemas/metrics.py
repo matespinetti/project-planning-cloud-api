@@ -13,13 +13,11 @@ from pydantic import BaseModel, Field
 
 
 class ProyectosPorEstado(BaseModel):
-    """Count of projects by status."""
+    """Count of projects by lifecycle state."""
 
-    borrador: int = Field(0, description="Draft projects")
-    en_planificacion: int = Field(0, description="In planning phase")
-    buscando_financiamiento: int = Field(0, description="Seeking funding")
-    en_ejecucion: int = Field(0, description="In execution")
-    completo: int = Field(0, description="Completed projects")
+    pendiente: int = Field(0, description="Created and seeking financing")
+    en_ejecucion: int = Field(0, description="Currently being executed")
+    finalizado: int = Field(0, description="Finished projects")
 
 
 class DashboardMetrics(BaseModel):
@@ -49,6 +47,7 @@ class EtapaTracking(BaseModel):
     descripcion: str
     fecha_inicio: date
     fecha_fin: date
+    estado: str = Field(..., description="Etapa lifecycle state")
     total_pedidos: int
     pedidos_completados: int
     pedidos_pendientes: int
@@ -141,10 +140,10 @@ class PerformanceMetrics(BaseModel):
     )
     tiempo_inicio_promedio_dias: Optional[float] = Field(
         None,
-        description="Average days from project creation to EN_EJECUCION transition",
+        description="Average days from project creation to en_ejecucion transition",
     )
-    proyectos_en_planificacion_mas_30_dias: int = Field(
-        ..., description="Projects stuck in planning for more than 30 days"
+    proyectos_pendientes_mas_30_dias: int = Field(
+        ..., description="Projects stuck in pending (sin ejecución) for more than 30 days"
     )
     observaciones_total: int
     observaciones_resueltas: int

@@ -62,7 +62,7 @@ class OfertaService:
             user_id=user.id,
             descripcion=oferta_data.descripcion,
             monto_ofrecido=oferta_data.monto_ofrecido,
-            estado=EstadoOferta.PENDIENTE,
+            estado=EstadoOferta.pendiente,
         )
 
         db.add(db_oferta)
@@ -152,7 +152,7 @@ class OfertaService:
         await OfertaService._verify_project_ownership(db, oferta, user)
 
         # Check if oferta is already accepted or rejected
-        if oferta.estado != EstadoOferta.PENDIENTE:
+        if oferta.estado != EstadoOferta.pendiente:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Oferta is already {oferta.estado.value}",
@@ -175,20 +175,20 @@ class OfertaService:
             )
 
         # Accept the oferta
-        oferta.estado = EstadoOferta.ACEPTADA
+        oferta.estado = EstadoOferta.aceptada
 
         # Auto-reject all other pending ofertas for the same pedido
         stmt_other_ofertas = (
             select(Oferta)
             .where(Oferta.pedido_id == oferta.pedido_id)
             .where(Oferta.id != oferta.id)  # Exclude the accepted one
-            .where(Oferta.estado == EstadoOferta.PENDIENTE)
+            .where(Oferta.estado == EstadoOferta.pendiente)
         )
         result = await db.execute(stmt_other_ofertas)
         other_ofertas = result.scalars().all()
 
         for other_oferta in other_ofertas:
-            other_oferta.estado = EstadoOferta.RECHAZADA
+            other_oferta.estado = EstadoOferta.rechazada
             logger.info(
                 f"Auto-rejecting oferta {other_oferta.id} because oferta {oferta_id} "
                 f"was accepted for pedido {oferta.pedido_id}"
@@ -222,14 +222,14 @@ class OfertaService:
         await OfertaService._verify_project_ownership(db, oferta, user)
 
         # Check if oferta is already accepted or rejected
-        if oferta.estado != EstadoOferta.PENDIENTE:
+        if oferta.estado != EstadoOferta.pendiente:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Oferta is already {oferta.estado.value}",
             )
 
         # Reject the oferta
-        oferta.estado = EstadoOferta.RECHAZADA
+        oferta.estado = EstadoOferta.rechazada
         await db.commit()
         await db.refresh(oferta)
 
@@ -266,7 +266,7 @@ class OfertaService:
             )
 
         # Check if oferta is in ACEPTADA state
-        if oferta.estado != EstadoOferta.ACEPTADA:
+        if oferta.estado != EstadoOferta.aceptada:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Oferta must be in aceptada state to confirm realization. Current state: {oferta.estado.value}",
@@ -329,7 +329,7 @@ class OfertaService:
         stmt = (
             select(Oferta)
             .where(Oferta.user_id == user.id)
-            .where(Oferta.estado == EstadoOferta.ACEPTADA)
+            .where(Oferta.estado == EstadoOferta.aceptada)
             .options(joinedload(Oferta.pedido), joinedload(Oferta.user))
             .order_by(Oferta.updated_at.desc())
         )

@@ -54,7 +54,7 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
             "content": {
                 "application/json": {
                     "example": {
-                        "detail": "Observations can only be created for projects in 'en_ejecucion' state. Current state: borrador"
+                        "detail": "Observations can only be created for projects in 'en_ejecucion' state. Current state: pendiente"
                     }
                 }
             },

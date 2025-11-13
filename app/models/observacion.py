@@ -4,24 +4,24 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
-import enum as py_enum
 from sqlalchemy import Date, DateTime, Enum, ForeignKey, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.enums import StrEnum
 
 if TYPE_CHECKING:
     from app.models.proyecto import Proyecto
     from app.models.user import User
 
 
-class EstadoObservacion(str, py_enum.Enum):
+class EstadoObservacion(StrEnum):
     """Observation status enumeration."""
 
-    PENDIENTE = "pendiente"
-    RESUELTA = "resuelta"
-    VENCIDA = "vencida"
+    pendiente = "pendiente"
+    resuelta = "resuelta"
+    vencida = "vencida"
 
 
 class Observacion(Base):
@@ -57,7 +57,7 @@ class Observacion(Base):
     estado: Mapped[EstadoObservacion] = mapped_column(
         Enum(EstadoObservacion),
         nullable=False,
-        default=EstadoObservacion.PENDIENTE,
+        default=EstadoObservacion.pendiente,
     )
 
     # Deadlines (5 days from creation)

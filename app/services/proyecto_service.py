@@ -1,7 +1,7 @@
 """Proyecto service - Business logic for project operations."""
 
 import logging
-from datetime import date
+from datetime import date, datetime, timezone
 from typing import Dict, List, Optional
 from uuid import UUID
 
@@ -10,11 +10,16 @@ from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
-from app.models.etapa import Etapa
-from app.models.pedido import EstadoPedido, Pedido
+from app.models.etapa import Etapa, EstadoEtapa
+from app.models.pedido import Pedido
 from app.models.proyecto import EstadoProyecto, Proyecto
 from app.models.user import User
 from app.schemas.proyecto import PedidoPendienteInfo, ProyectoCreate, ProyectoUpdate
+from app.services.state_machine import (
+    etapa_all_pedidos_financed,
+    etapa_pedidos_pendientes,
+    refresh_etapa_state,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +35,7 @@ class ProyectoService:
         Create a proyecto with nested etapas and pedidos in a single transaction.
         The user_id is automatically set from the authenticated user.
         """
-        # Create Proyecto instance
+        # Create Proyecto instance (estado defaults to 'pendiente')
         db_proyecto = Proyecto(
             user_id=user.id,
             titulo=proyecto_data.titulo,
@@ -40,7 +45,6 @@ class ProyectoService:
             provincia=proyecto_data.provincia,
             ciudad=proyecto_data.ciudad,
             barrio=proyecto_data.barrio,
-            estado=proyecto_data.estado,
             bonita_case_id=proyecto_data.bonita_case_id,
             bonita_process_instance_id=proyecto_data.bonita_process_instance_id,
         )
@@ -155,8 +159,8 @@ class ProyectoService:
         db: AsyncSession, proyecto_id: UUID, user: User
     ) -> Dict[str, any]:
         """
-        Start a project by transitioning from EN_PLANIFICACION to EN_EJECUCION.
-        Only allowed when ALL pedidos from ALL etapas are in COMPLETADO state.
+        Start a project by transitioning from PENDIENTE to EN_EJECUCION.
+        Only allowed when ALL etapas are financed (no pedidos pendientes).
         Only the project owner can start the project.
 
         Returns:
@@ -175,41 +179,48 @@ class ProyectoService:
         ProyectoService.verify_ownership(db_proyecto, user)
 
         # Check current state
-        if db_proyecto.estado != EstadoProyecto.EN_PLANIFICACION.value:
+        if db_proyecto.estado != EstadoProyecto.pendiente.value:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Project can only be started from 'en_planificacion' state. Current state: {db_proyecto.estado}",
+                detail=f"Project can only be started from 'pendiente' state. Current state: {db_proyecto.estado}",
             )
 
-        # Check if all pedidos are COMPLETADO
-        pedidos_pendientes: List[PedidoPendienteInfo] = []
+        # Re-evaluate etapa states before validating financing
+        for etapa in db_proyecto.etapas:
+            refresh_etapa_state(etapa)
+
+        pedidos_sin_financiar: List[PedidoPendienteInfo] = []
 
         for etapa in db_proyecto.etapas:
-            for pedido in etapa.pedidos:
-                if pedido.estado != EstadoPedido.COMPLETADO:
-                    pedidos_pendientes.append(
-                        PedidoPendienteInfo(
-                            pedido_id=pedido.id,
-                            etapa_nombre=etapa.nombre,
-                            tipo=pedido.tipo.value,
-                            estado=pedido.estado.value,
-                            descripcion=pedido.descripcion,
-                        )
+            pending_pedidos = etapa_pedidos_pendientes(etapa)
+            for pedido in pending_pedidos:
+                pedidos_sin_financiar.append(
+                    PedidoPendienteInfo(
+                        pedido_id=pedido.id,
+                        etapa_nombre=etapa.nombre,
+                        tipo=pedido.tipo.value,
+                        estado=pedido.estado.value,
+                        descripcion=pedido.descripcion,
                     )
+                )
 
-        # If there are incomplete pedidos, raise error with details
-        if pedidos_pendientes:
-            count = len(pedidos_pendientes)
+        if pedidos_sin_financiar:
+            count = len(pedidos_sin_financiar)
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail={
-                    "message": f"No se puede iniciar el proyecto. {count} pedido{'s' if count > 1 else ''} no {'están' if count > 1 else 'está'} completado{'s' if count > 1 else ''}",
-                    "pedidos_pendientes": [p.model_dump() for p in pedidos_pendientes],
+                    "message": f"No se puede iniciar el proyecto. {count} pedido{'s' if count != 1 else ''} no {'están' if count != 1 else 'está'} financiado{'s' if count != 1 else ''}",
+                    "pedidos_pendientes": [p.model_dump() for p in pedidos_sin_financiar],
                 },
             )
 
-        # All pedidos are completed, update state
-        db_proyecto.estado = EstadoProyecto.EN_EJECUCION.value
+        # All etapas financed, advance project and etapas
+        db_proyecto.estado = EstadoProyecto.en_ejecucion.value
+        for etapa in db_proyecto.etapas:
+            if etapa.estado != EstadoEtapa.completada:
+                etapa.estado = EstadoEtapa.en_ejecucion
+                etapa.fecha_completitud = None
+
         await db.commit()
         await db.refresh(db_proyecto)
 
@@ -222,6 +233,66 @@ class ProyectoService:
             "titulo": db_proyecto.titulo,
             "estado": db_proyecto.estado,
             "message": "Proyecto iniciado exitosamente",
+        }
+
+    @staticmethod
+    async def complete_project(
+        db: AsyncSession, proyecto_id: UUID, user: User
+    ) -> Dict[str, any]:
+        """
+        Complete a project by transitioning from EN_EJECUCION to FINALIZADO.
+        Only allowed when ALL etapas are marked as COMPLETADA.
+        """
+        db_proyecto = await ProyectoService.get_by_id(db, proyecto_id)
+        if not db_proyecto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Proyecto with id {proyecto_id} not found",
+            )
+
+        ProyectoService.verify_ownership(db_proyecto, user)
+
+        if db_proyecto.estado != EstadoProyecto.en_ejecucion.value:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Project can only be completed from 'en_ejecucion' state. Current state: {db_proyecto.estado}",
+            )
+
+        # Validate all etapas are completed (no state modification)
+        etapas_incompletas: List[Dict[str, str]] = []
+        for etapa in db_proyecto.etapas:
+            if etapa.estado != EstadoEtapa.completada:
+                etapas_incompletas.append(
+                    {
+                        "etapa_id": str(etapa.id),
+                        "nombre": etapa.nombre,
+                        "estado": etapa.estado.value,
+                    }
+                )
+
+        if etapas_incompletas:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail={
+                    "message": "Todas las etapas deben estar completadas antes de finalizar el proyecto.",
+                    "etapas_pendientes": etapas_incompletas,
+                },
+            )
+
+        db_proyecto.estado = EstadoProyecto.finalizado.value
+        db_proyecto.fecha_completitud = datetime.now(timezone.utc)
+        await db.commit()
+        await db.refresh(db_proyecto)
+
+        logger.info(
+            f"Project {proyecto_id} finalized by user {user.id}. Transitioned to FINALIZADO"
+        )
+
+        return {
+            "id": db_proyecto.id,
+            "titulo": db_proyecto.titulo,
+            "estado": db_proyecto.estado,
+            "message": "Proyecto finalizado exitosamente",
         }
 
     @staticmethod

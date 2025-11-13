@@ -9,19 +9,20 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-
-import enum as py_enum
+from app.models.enums import StrEnum
 
 if TYPE_CHECKING:
     from app.models.proyecto import Proyecto
     from app.models.pedido import Pedido
 
 
-class EstadoEtapa(str, py_enum.Enum):
-    """Etapa status enumeration."""
+class EstadoEtapa(StrEnum):
+    """Etapa lifecycle: pending funding → financed → executing → completed."""
 
-    EN_PROGRESO = "en_progreso"
-    COMPLETADA = "completada"
+    pendiente = "pendiente"
+    financiada = "financiada"
+    en_ejecucion = "en_ejecucion"
+    completada = "completada"
 
 
 class Etapa(Base):
@@ -47,7 +48,7 @@ class Etapa(Base):
 
     # Status
     estado: Mapped[EstadoEtapa] = mapped_column(
-        Enum(EstadoEtapa), nullable=False, default=EstadoEtapa.EN_PROGRESO
+        Enum(EstadoEtapa), nullable=False, default=EstadoEtapa.pendiente
     )
 
     # Completion tracking

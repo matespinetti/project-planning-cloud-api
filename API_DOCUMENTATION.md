@@ -403,7 +403,7 @@ Crea un nuevo proyecto con etapas y pedidos anidados en una sola transacción.
 | `provincia`                  | string  | Sí        | Provincia (ej: "Buenos Aires")                                       |
 | `ciudad`                     | string  | Sí        | Ciudad (ej: "La Plata")                                              |
 | `barrio`                     | string  | No        | Barrio/Localidad (opcional)                                          |
-| `estado`                     | enum    | No        | Estado del proyecto (default: `en_planificacion`, ver enumeraciones) |
+| `estado`                     | enum    | No        | Estado del proyecto (default: `pendiente`, ver enumeraciones) |
 | `bonita_case_id`             | string  | No        | ID de caso Bonita (opcional, para integración)                       |
 | `bonita_process_instance_id` | integer | No        | ID instancia Bonita (opcional)                                       |
 | `etapas`                     | array   | No        | Array de etapas anidadas (ver estructura abajo)                      |
@@ -440,7 +440,7 @@ Crea un nuevo proyecto con etapas y pedidos anidados en una sola transacción.
 	"provincia": "Buenos Aires",
 	"ciudad": "La Plata",
 	"barrio": "Centro",
-	"estado": "en_planificacion",
+	"estado": "pendiente",
 	"bonita_case_id": null,
 	"bonita_process_instance_id": null,
 	"etapas": [
@@ -501,7 +501,7 @@ Crea un nuevo proyecto con etapas y pedidos anidados en una sola transacción.
 	"provincia": "Buenos Aires",
 	"ciudad": "La Plata",
 	"barrio": "Centro",
-	"estado": "en_planificacion",
+	"estado": "pendiente",
 	"bonita_case_id": null,
 	"bonita_process_instance_id": null,
 	"created_at": "2024-10-22T14:30:00+00:00",
@@ -593,7 +593,7 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects \
     "provincia": "Buenos Aires",
     "ciudad": "La Plata",
     "barrio": "Centro",
-    "estado": "en_planificacion",
+    "estado": "pendiente",
     "etapas": [
       {
         "nombre": "Fase 1 - Cimientos",
@@ -715,7 +715,7 @@ Todos los campos son opcionales. Solo se actualizan los que proporcionas:
 
 ```json
 {
-	"estado": "buscando_financiamiento",
+	"estado": "en_ejecucion",
 	"bonita_case_id": "CASE-2024-001",
 	"bonita_process_instance_id": 12345
 }
@@ -755,7 +755,7 @@ curl -X PATCH https://project-planning-cloud-api.onrender.com/api/v1/projects/$P
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
-    "estado": "buscando_financiamiento",
+    "estado": "en_ejecucion",
     "bonita_case_id": "CASE-2024-001"
   }'
 ```
@@ -820,14 +820,14 @@ curl -X DELETE https://project-planning-cloud-api.onrender.com/api/v1/projects/$
 
 ### 5️⃣ Iniciar Proyecto
 
-Inicia un proyecto cambiando su estado de `en_planificacion` a `en_ejecucion`.
+Inicia un proyecto cambiando su estado de `pendiente` a `en_ejecucion`.
 
 **Método:** `POST`
 **Ruta:** `/api/v1/projects/{project_id}/start`
 **Autenticación:** Requerida (Bearer Token)
 **Código de Respuesta:** `200 OK`
 **Restricción:** Solo el propietario del proyecto puede iniciarlo
-**Validación:** Todos los pedidos de todas las etapas deben estar en estado `COMPLETADO`
+**Validación:** Todas las etapas deben estar financiadas (sin pedidos en `PENDIENTE`)
 
 #### Path Parameters
 
@@ -839,11 +839,11 @@ Inicia un proyecto cambiando su estado de `en_planificacion` a `en_ejecucion`.
 
 Para iniciar un proyecto, se deben cumplir estas condiciones:
 
-1. **Estado actual:** El proyecto debe estar en estado `en_planificacion`
-2. **Pedidos completados:** TODOS los pedidos de TODAS las etapas deben estar en estado `COMPLETADO`
+1. **Estado actual:** El proyecto debe estar en estado `pendiente`
+2. **Etapas financiadas:** TODAS las etapas deben tener sus pedidos en estado `COMPROMETIDO` o `COMPLETADO`
 3. **Propiedad:** Solo el dueño del proyecto puede iniciarlo
 
-Si algún pedido no está completado (está en `PENDIENTE` o `COMPROMETIDO`), el endpoint retorna error 400 con la lista detallada de pedidos pendientes.
+Si algún pedido sigue en `PENDIENTE`, el endpoint retorna error 400 con la lista detallada de pedidos que necesitan financiamiento.
 
 #### Response Exitoso (200)
 
@@ -863,25 +863,18 @@ Si algún pedido no está completado (está en `PENDIENTE` o `COMPROMETIDO`), el
 | `401`  | Token inválido o faltante           | `{"detail": "Invalid or expired token"}`                                                                                          | Proporciona un access_token válido                                    |
 | `403`  | No eres el propietario              | `{"detail": "Only the project owner can perform this action"}`                                                                    | Solo el dueño del proyecto puede iniciarlo                            |
 | `404`  | Proyecto no encontrado              | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                                   | Verifica que el project_id sea correcto                               |
-| `400`  | Estado incorrecto                   | `{"detail": "Project can only be started from 'en_planificacion' state. Current state: en_ejecucion"}`                            | El proyecto ya fue iniciado o está en otro estado                     |
-| `400`  | Pedidos no completados (ver abajo)  | Ver ejemplo detallado abajo                                                                                                       | Asegúrate de que todos los pedidos tengan ofertas aceptadas y confirmadas |
+| `400`  | Estado incorrecto                   | `{"detail": "Project can only be started from 'pendiente' state. Current state: en_ejecucion"}`                                    | El proyecto ya fue iniciado o está en otro estado                     |
+| `400`  | Pedidos sin financiamiento (ver abajo)  | Ver ejemplo detallado abajo                                                                                                   | Asegúrate de que todos los pedidos tengan ofertas aceptadas           |
 
-#### Error 400 - Pedidos No Completados (Ejemplo Detallado)
+#### Error 400 - Pedidos Sin Financiamiento (Ejemplo Detallado)
 
 Cuando hay pedidos sin completar, el error incluye la lista completa con detalles:
 
 ```json
 {
 	"detail": {
-		"message": "No se puede iniciar el proyecto. 3 pedidos no están completados",
+		"message": "No se puede iniciar el proyecto. 2 pedidos no están financiados",
 		"pedidos_pendientes": [
-			{
-				"pedido_id": "323e4567-e89b-12d3-a456-426614174222",
-				"etapa_nombre": "Fase 1 - Cimientos",
-				"tipo": "economico",
-				"estado": "COMPROMETIDO",
-				"descripcion": "Presupuesto para materiales de cimentación"
-			},
 			{
 				"pedido_id": "323e4567-e89b-12d3-a456-426614174223",
 				"etapa_nombre": "Fase 1 - Cimientos",
@@ -906,8 +899,8 @@ Cuando hay pedidos sin completar, el error incluye la lista completa con detalle
 1. **Crear proyecto** con etapas y pedidos (POST /api/v1/projects)
 2. **Usuarios ofertan** en los pedidos (POST /api/v1/pedidos/{pedido_id}/ofertas)
 3. **Propietario acepta ofertas** (POST /api/v1/ofertas/{oferta_id}/accept) → Pedido pasa a `COMPROMETIDO`
-4. **Oferentes confirman realización** (POST /api/v1/ofertas/{oferta_id}/confirmar-realizacion) → Pedido pasa a `COMPLETADO`
-5. **Cuando TODOS los pedidos están `COMPLETADO`**, el propietario puede iniciar el proyecto
+4. **(Opcional) Oferentes confirman realización** (POST /api/v1/ofertas/{oferta_id}/confirmar-realizacion) → Pedido pasa a `COMPLETADO`
+5. **Cuando TODOS los pedidos están al menos `COMPROMETIDO`**, el propietario puede iniciar el proyecto
 
 #### Instrucciones para Probar
 
@@ -933,6 +926,50 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects/$PR
 
 -   Status code: `200 OK`
 -   Body: JSON con id, titulo, estado y mensaje de éxito
+
+---
+
+### 6️⃣ Finalizar Proyecto
+
+Marca un proyecto como `finalizado` una vez que todas sus etapas se completaron.
+
+**Método:** `POST`  
+**Ruta:** `/api/v1/projects/{project_id}/complete`  
+**Autenticación:** Requerida (Bearer Token)  
+**Código de Respuesta:** `200 OK`  
+**Restricción:** Solo el propietario del proyecto puede finalizarlo  
+**Validación:** Todas las etapas deben estar en estado `completada`
+
+#### Response Exitoso (200)
+
+```json
+{
+	"id": "123e4567-e89b-12d3-a456-426614174000",
+	"titulo": "Centro Comunitario La Plata",
+	"estado": "finalizado",
+	"message": "Proyecto finalizado exitosamente"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                        | Ejemplo de Error                                                                                                                                         | Solución                                                         |
+| ------ | ---------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `401`  | Token inválido o faltante          | `{"detail": "Invalid or expired token"}`                                                                                                                 | Proporciona un access_token válido                               |
+| `403`  | No eres el propietario             | `{"detail": "Only the project owner can perform this action"}`                                                                                           | Solo el dueño del proyecto puede finalizarlo                     |
+| `404`  | Proyecto no encontrado             | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                                                          | Verifica que el project_id sea correcto                          |
+| `400`  | Estado incorrecto                  | `{"detail": "Project can only be completed from 'en_ejecucion' state. Current state: pendiente"}`                                                        | Asegúrate de que el proyecto esté en ejecución                   |
+| `400`  | Etapas pendientes                  | `{"detail": {"message": "Todas las etapas deben estar completadas...", "etapas_pendientes": [{"etapa_id": "...", "estado": "en_ejecucion"}]}}`           | Completa todas las etapas antes de finalizar                     |
+
+#### cURL
+
+```bash
+TOKEN="tu_access_token_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/complete \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 **Si hay pedidos pendientes:**
 
@@ -1699,7 +1736,7 @@ Crea una nueva observación sobre un proyecto en ejecución. **Solo miembros del
 | `401`  | Token inválido o faltante                | `{"detail": "Invalid or expired token"}`                                                                                      | Proporciona un access_token válido                     |
 | `403`  | Usuario no es del consejo                | `{"detail": "Only council members can create observations"}`                                                                  | Solo usuarios con role=COUNCIL pueden crear observaciones |
 | `404`  | Proyecto no encontrado                   | `{"detail": "Proyecto with id ... not found"}`                                                                                | Verifica que el project_id sea correcto                |
-| `400`  | Proyecto no está en ejecución            | `{"detail": "Observations can only be created for projects in 'en_ejecucion' state. Current state: en_planificacion"}`        | El proyecto debe estar en estado `en_ejecucion`        |
+| `400`  | Proyecto no está en ejecución            | `{"detail": "Observations can only be created for projects in 'en_ejecucion' state. Current state: pendiente"}`        | El proyecto debe estar en estado `en_ejecucion`        |
 | `422`  | Validación fallida                       | `{"detail": [{"loc": ["body", "descripcion"], "msg": "ensure this value has at least 10 characters", "type": "value_error"}]}` | La descripción debe tener al menos 10 caracteres       |
 
 #### Instrucciones para Probar
@@ -1981,18 +2018,16 @@ Este es el flujo típico de trabajo con observaciones:
 Estados disponibles para los proyectos:
 
 ```python
-"borrador"              # Proyecto en borrador
-"en_planificacion"      # En fase de planificación (default)
-"buscando_financiamiento"  # Buscando fondos
+"pendiente"             # Buscando financiamiento (default)
 "en_ejecucion"          # En ejecución
-"completo"              # Proyecto completado
+"finalizado"            # Proyecto completado y cerrado
 ```
 
 Ejemplo de uso:
 
 ```json
 {
-	"estado": "en_planificacion"
+	"estado": "pendiente"
 }
 ```
 
@@ -2209,7 +2244,7 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects \
     "provincia": "Buenos Aires",
     "ciudad": "La Plata",
     "barrio": "Centro",
-    "estado": "en_planificacion",
+    "estado": "pendiente",
     "etapas": [
       {
         "nombre": "Remodelación Interior",
@@ -2399,7 +2434,7 @@ Esta sección describe **todos los códigos de error posibles** que la API puede
 | `401`  | Token inválido o faltante  | `{"detail": "Invalid or expired token"}`                                                                                                                                                                                                                                                                    |
 | `403`  | No eres el dueño           | `{"detail": "Only the project owner can perform this action"}`                                                                                                                                                                                                                                              |
 | `404`  | Proyecto no encontrado     | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                                                                                                                                                                                                             |
-| `400`  | Estado incorrecto          | `{"detail": "Project can only be started from 'en_planificacion' state. Current state: en_ejecucion"}`                                                                                                                                                                                                      |
+| `400`  | Estado incorrecto          | `{"detail": "Project can only be started from 'pendiente' state. Current state: en_ejecucion"}`                                                                                                                                                                                                      |
 | `400`  | Pedidos no completados     | `{"detail": {"message": "No se puede iniciar el proyecto. 3 pedidos no están completados", "pedidos_pendientes": [{"pedido_id": "323e4567...", "etapa_nombre": "Fase 1", "tipo": "economico", "estado": "COMPROMETIDO", "descripcion": "Presupuesto para materiales de cimentación"}]}}`                  |
 
 ---

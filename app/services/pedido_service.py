@@ -14,12 +14,24 @@ from app.models.pedido import EstadoPedido, Pedido
 from app.models.proyecto import Proyecto
 from app.models.user import User
 from app.schemas.pedido import PedidoCreate
+from app.services.state_machine import refresh_etapa_state
 
 logger = logging.getLogger(__name__)
 
 
 class PedidoService:
     """Service for pedido-related operations."""
+
+    @staticmethod
+    async def _load_etapa_with_pedidos(db: AsyncSession, etapa_id: UUID) -> Optional[Etapa]:
+        """Helper to fetch an etapa with its pedidos eager-loaded."""
+        stmt = (
+            select(Etapa)
+            .where(Etapa.id == etapa_id)
+            .options(joinedload(Etapa.pedidos))
+        )
+        result = await db.execute(stmt)
+        return result.unique().scalar_one_or_none()
 
     @staticmethod
     async def create_for_etapa(
@@ -74,6 +86,12 @@ class PedidoService:
         )
 
         db.add(db_pedido)
+        await db.flush()
+
+        etapa_with_pedidos = await PedidoService._load_etapa_with_pedidos(db, etapa_id)
+        if etapa_with_pedidos:
+            refresh_etapa_state(etapa_with_pedidos)
+
         await db.commit()
         await db.refresh(db_pedido)
 
@@ -173,6 +191,11 @@ class PedidoService:
             )
 
         pedido.estado = EstadoPedido.COMPROMETIDO
+
+        etapa = await PedidoService._load_etapa_with_pedidos(db, pedido.etapa_id)
+        if etapa:
+            refresh_etapa_state(etapa)
+
         await db.commit()
         await db.refresh(pedido)
 
@@ -193,6 +216,11 @@ class PedidoService:
             )
 
         pedido.estado = EstadoPedido.COMPLETADO
+
+        etapa = await PedidoService._load_etapa_with_pedidos(db, pedido.etapa_id)
+        if etapa:
+            refresh_etapa_state(etapa)
+
         await db.commit()
         await db.refresh(pedido)
 

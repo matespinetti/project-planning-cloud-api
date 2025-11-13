@@ -14,6 +14,7 @@ from app.models.user import User
 from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
 from app.schemas.proyecto import (
     PaginatedProyectoResponse,
+    ProyectoCompleteResponse,
     ProyectoCreate,
     ProyectoListItem,
     ProyectoResponse,
@@ -272,7 +273,7 @@ async def delete_project(
                         "invalid_state": {
                             "summary": "Invalid project state",
                             "value": {
-                                "detail": "Project can only be started from 'en_planificacion' state. Current state: en_ejecucion"
+                                "detail": "Project can only be started from 'pendiente' state. Current state: en_ejecucion"
                             },
                         },
                         "incomplete_pedidos": {
@@ -311,12 +312,12 @@ async def start_project(
     current_user: User = Depends(get_current_user),
 ) -> ProyectoStartResponse:
     """
-    Iniciar un proyecto (transición de EN_PLANIFICACION a EN_EJECUCION).
+    Iniciar un proyecto (transición de PENDIENTE a EN_EJECUCION).
 
     Solo puede ser iniciado por el dueño del proyecto.
-    Requiere que TODOS los pedidos de TODAS las etapas estén en estado COMPLETADO.
+    Requiere que TODAS las etapas estén financiadas (sin pedidos pendientes).
 
-    Si hay pedidos pendientes o comprometidos, retorna error 400 con lista detallada.
+    Si hay pedidos sin financiamiento, retorna error 400 con lista detallada.
     """
     logger.info(f"User {current_user.id} attempting to start proyecto {project_id}")
 
@@ -324,6 +325,54 @@ async def start_project(
 
     logger.info(f"Successfully started proyecto {project_id}")
     return ProyectoStartResponse(**result)
+
+
+@router.post(
+    "/projects/{project_id}/complete",
+    response_model=ProyectoCompleteResponse,
+    status_code=status.HTTP_200_OK,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: OWNERSHIP_RESPONSES[403],
+        404: OWNERSHIP_RESPONSES[404],
+        400: {
+            "description": "Bad Request - Project cannot be finalized (invalid state or etapas pendientes)",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": {
+                            "message": "Todas las etapas deben estar completadas antes de finalizar el proyecto.",
+                            "etapas_pendientes": [
+                                {
+                                    "etapa_id": "123e4567-e89b-12d3-a456-426614174000",
+                                    "nombre": "Etapa 1 - Preparación",
+                                    "estado": "en_ejecucion",
+                                }
+                            ],
+                        }
+                    }
+                }
+            },
+        },
+    },
+)
+async def complete_project(
+    project_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProyectoCompleteResponse:
+    """
+    Finalizar un proyecto (transición de EN_EJECUCION a FINALIZADO).
+
+    Solo el dueño del proyecto puede finalizarlo.
+    Requiere que TODAS las etapas estén marcadas como completadas.
+    """
+    logger.info(f"User {current_user.id} attempting to complete proyecto {project_id}")
+
+    result = await ProyectoService.complete_project(db, project_id, current_user)
+
+    logger.info(f"Successfully completed proyecto {project_id}")
+    return ProyectoCompleteResponse(**result)
 
 
 @router.get(
@@ -344,7 +393,7 @@ async def list_projects(
     # Filtering
     estado: Optional[str] = Query(
         None,
-        pattern="^(borrador|en_planificacion|buscando_financiamiento|en_ejecucion|completo)$",
+        pattern="^(pendiente|en_ejecucion|finalizado)$",
         description="Filter by project status",
     ),
     tipo: Optional[str] = Query(None, max_length=100, description="Filter by project type (partial match, case-insensitive)"),
@@ -415,7 +464,7 @@ async def list_projects(
     GET /api/v1/projects?page=2&page_size=10&sort_by=titulo&sort_order=asc
 
     # Combinar filtros
-    GET /api/v1/projects?estado=en_planificacion&pais=Argentina&search=huerta
+    GET /api/v1/projects?estado=pendiente&pais=Argentina&search=huerta
     ```
     """
     logger.info(
@@ -434,7 +483,7 @@ async def list_projects(
         except ValueError:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Invalid estado value: {estado}. Must be one of: borrador, en_planificacion, buscando_financiamiento, en_ejecucion, completo",
+                detail=f"Invalid estado value: {estado}. Must be one of: pendiente, en_ejecucion, finalizado",
             )
 
     # Call service layer

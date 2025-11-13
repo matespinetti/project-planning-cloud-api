@@ -9,8 +9,7 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-
-import enum as py_enum
+from app.models.enums import StrEnum
 
 if TYPE_CHECKING:
     from app.models.user import User
@@ -18,12 +17,12 @@ if TYPE_CHECKING:
     from app.models.observacion import Observacion
 
 
-class EstadoProyecto(str, py_enum.Enum):
-    """Project status enumeration (simplified to 3 states)."""
+class EstadoProyecto(StrEnum):
+    """Project status enumeration (pending → executing → finished)."""
 
-    EN_PLANIFICACION = "en_planificacion"
-    EN_EJECUCION = "en_ejecucion"
-    COMPLETO = "completo"
+    pendiente = "pendiente"
+    en_ejecucion = "en_ejecucion"
+    finalizado = "finalizado"
 
 
 class Proyecto(Base):
@@ -54,7 +53,7 @@ class Proyecto(Base):
 
     # Status
     estado: Mapped[EstadoProyecto] = mapped_column(
-        Enum(EstadoProyecto), nullable=False, default=EstadoProyecto.EN_PLANIFICACION
+        Enum(EstadoProyecto), nullable=False, default=EstadoProyecto.pendiente
     )
 
     # Bonita BPM Integration (can be null initially)

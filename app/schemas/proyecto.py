@@ -22,7 +22,6 @@ class ProyectoCreate(BaseModel):
     provincia: str = Field(..., max_length=100)
     ciudad: str = Field(..., max_length=100)
     barrio: Optional[str] = Field(None, max_length=100)
-    estado: str = Field(default="en_planificacion")
     bonita_case_id: Optional[str] = Field(None, max_length=100)
     bonita_process_instance_id: Optional[int] = None
     etapas: List[EtapaCreate] = Field(..., min_length=1)
@@ -88,6 +87,15 @@ class PedidoPendienteInfo(BaseModel):
 
 class ProyectoStartResponse(BaseModel):
     """Schema for successful project start response."""
+
+    id: UUID
+    titulo: str
+    estado: str
+    message: str
+
+
+class ProyectoCompleteResponse(BaseModel):
+    """Schema for successful project completion response."""
 
     id: UUID
     titulo: str

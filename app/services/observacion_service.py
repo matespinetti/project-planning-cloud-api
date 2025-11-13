@@ -61,8 +61,8 @@ class ObservacionService:
                 detail=f"Proyecto with id {proyecto_id} not found",
             )
 
-        # Verify proyecto is in EN_EJECUCION state
-        if proyecto.estado != EstadoProyecto.EN_EJECUCION.value:
+        # Verify proyecto is in en_ejecucion state
+        if proyecto.estado != EstadoProyecto.en_ejecucion.value:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Observations can only be created for projects in 'en_ejecucion' state. "
@@ -77,7 +77,7 @@ class ObservacionService:
             proyecto_id=proyecto_id,
             council_user_id=council_user.id,
             descripcion=descripcion,
-            estado=EstadoObservacion.PENDIENTE,
+            estado=EstadoObservacion.pendiente,
             fecha_limite=fecha_limite,
         )
 
@@ -243,14 +243,14 @@ class ObservacionService:
             )
 
         # Check if already resolved
-        if observacion.estado == EstadoObservacion.RESUELTA:
+        if observacion.estado == EstadoObservacion.resuelta:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Observacion is already resolved",
             )
 
         # Resolve the observacion
-        observacion.estado = EstadoObservacion.RESUELTA
+        observacion.estado = EstadoObservacion.resuelta
         observacion.respuesta = respuesta
         observacion.fecha_resolucion = datetime.now(timezone.utc)
 
@@ -259,7 +259,7 @@ class ObservacionService:
 
         logger.info(
             f"Observacion {observacion_id} resolved by user {executor_user.id}. "
-            f"Was {'overdue' if observacion.estado == EstadoObservacion.VENCIDA else 'on time'}"
+            f"Was {'overdue' if observacion.estado == EstadoObservacion.vencida else 'on time'}"
         )
         return observacion
 
@@ -277,10 +277,10 @@ class ObservacionService:
             True if status was changed to VENCIDA, False otherwise
         """
         if (
-            observacion.estado == EstadoObservacion.PENDIENTE
+            observacion.estado == EstadoObservacion.pendiente
             and date.today() > observacion.fecha_limite
         ):
-            observacion.estado = EstadoObservacion.VENCIDA
+            observacion.estado = EstadoObservacion.vencida
             logger.info(
                 f"Observacion {observacion.id} marked as vencida (overdue). "
                 f"Deadline was {observacion.fecha_limite}"

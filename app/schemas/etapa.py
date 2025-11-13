@@ -1,7 +1,7 @@
 """Etapa Pydantic schemas."""
 
-from datetime import date
-from typing import List
+from datetime import date, datetime
+from typing import List, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
@@ -55,4 +55,50 @@ class EtapaResponse(BaseModel):
     descripcion: str
     fecha_inicio: date
     fecha_fin: date
+    estado: str
+    fecha_completitud: Optional[datetime] = None
     pedidos: List[PedidoResponse] = []
+
+
+class EtapaListItem(BaseModel):
+    """Schema for etapa list item with pedido counts."""
+
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    proyecto_id: UUID
+    nombre: str
+    descripcion: str
+    fecha_inicio: date
+    fecha_fin: date
+    estado: str
+    fecha_completitud: Optional[datetime] = None
+    pedidos: List[PedidoResponse] = []
+    pedidos_pendientes_count: int = 0
+    pedidos_total_count: int = 0
+
+
+class EtapasListResponse(BaseModel):
+    """Schema for list of etapas."""
+
+    etapas: List[EtapaListItem]
+    total: int
+
+
+class EtapaStartResponse(BaseModel):
+    """Schema for successful etapa start response."""
+
+    id: UUID
+    nombre: str
+    estado: str
+    message: str
+
+
+class EtapaCompleteResponse(BaseModel):
+    """Schema for successful etapa completion response."""
+
+    id: UUID
+    nombre: str
+    estado: str
+    fecha_completitud: datetime
+    message: str

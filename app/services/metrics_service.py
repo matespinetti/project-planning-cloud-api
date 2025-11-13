@@ -6,7 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import case, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload
 
@@ -25,6 +25,7 @@ from app.schemas.metrics import (
     ProyectoTrackingMetrics,
     TopContribuidor,
 )
+from app.services.state_machine import etapa_all_pedidos_financed
 
 logger = logging.getLogger(__name__)
 
@@ -53,49 +54,40 @@ class MetricsService:
         total_proyectos = sum(estado_counts.values())
 
         # Projects in execution
-        proyectos_activos = estado_counts.get(EstadoProyecto.EN_EJECUCION.value, 0)
+        proyectos_activos = estado_counts.get(EstadoProyecto.en_ejecucion.value, 0)
 
-        # Projects ready to start (EN_PLANIFICACION with all pedidos COMPLETADO)
-        # First, get all projects in planning
+        # Projects ready to start (pendiente with all etapas financed)
+        # First, get all projects in pending state
         planning_stmt = (
             select(Proyecto)
             .options(joinedload(Proyecto.etapas).joinedload(Etapa.pedidos))
-            .where(Proyecto.estado == EstadoProyecto.EN_PLANIFICACION.value)
+            .where(Proyecto.estado == EstadoProyecto.pendiente.value)
         )
         result = await db.execute(planning_stmt)
         planning_projects = list(result.unique().scalars().all())
 
-        # Check which ones have all pedidos completed
+        # Check which ones have all etapas financed
         ready_to_start = 0
         for proyecto in planning_projects:
-            all_pedidos = [
-                pedido for etapa in proyecto.etapas for pedido in etapa.pedidos
-            ]
-            if all_pedidos and all(
-                p.estado == EstadoPedido.COMPLETADO.value for p in all_pedidos
+            if proyecto.etapas and all(
+                etapa_all_pedidos_financed(etapa) for etapa in proyecto.etapas
             ):
                 ready_to_start += 1
 
-        # Success rate (completed / total, excluding drafts)
-        completed_count = estado_counts.get(EstadoProyecto.COMPLETO.value, 0)
-        non_draft_total = total_proyectos - estado_counts.get(
-            EstadoProyecto.BORRADOR.value, 0
+        # Success rate (completed / total, excluding pending)
+        completed_count = estado_counts.get(EstadoProyecto.finalizado.value, 0)
+        non_pending_total = total_proyectos - estado_counts.get(
+            EstadoProyecto.pendiente.value, 0
         )
         tasa_exito = (
-            (completed_count / non_draft_total * 100) if non_draft_total > 0 else 0.0
+            (completed_count / non_pending_total * 100) if non_pending_total > 0 else 0.0
         )
 
         return DashboardMetrics(
             proyectos_por_estado=ProyectosPorEstado(
-                borrador=estado_counts.get(EstadoProyecto.BORRADOR.value, 0),
-                en_planificacion=estado_counts.get(
-                    EstadoProyecto.EN_PLANIFICACION.value, 0
-                ),
-                buscando_financiamiento=estado_counts.get(
-                    EstadoProyecto.BUSCANDO_FINANCIAMIENTO.value, 0
-                ),
-                en_ejecucion=estado_counts.get(EstadoProyecto.EN_EJECUCION.value, 0),
-                completo=estado_counts.get(EstadoProyecto.COMPLETO.value, 0),
+                pendiente=estado_counts.get(EstadoProyecto.pendiente.value, 0),
+                en_ejecucion=estado_counts.get(EstadoProyecto.en_ejecucion.value, 0),
+                finalizado=estado_counts.get(EstadoProyecto.finalizado.value, 0),
             ),
             total_proyectos=total_proyectos,
             proyectos_activos=proyectos_activos,
@@ -162,7 +154,7 @@ class MetricsService:
             # Calculate time metrics
             dias_planificados = (etapa.fecha_fin - etapa.fecha_inicio).days
             dias_transcurridos = None
-            if proyecto.estado == EstadoProyecto.EN_EJECUCION.value:
+            if proyecto.estado == EstadoProyecto.en_ejecucion.value:
                 # Only calculate if project is in execution
                 dias_transcurridos = (date.today() - etapa.fecha_inicio).days
                 if dias_transcurridos < 0:
@@ -175,6 +167,7 @@ class MetricsService:
                     descripcion=etapa.descripcion,
                     fecha_inicio=etapa.fecha_inicio,
                     fecha_fin=etapa.fecha_fin,
+                    estado=etapa.estado.value,
                     total_pedidos=etapa_total,
                     pedidos_completados=etapa_completados,
                     pedidos_pendientes=etapa_pendientes,
@@ -194,28 +187,28 @@ class MetricsService:
 
         # Check if can start
         puede_iniciar = (
-            proyecto.estado == EstadoProyecto.EN_PLANIFICACION.value
-            and total_pedidos > 0
-            and pedidos_completados == total_pedidos
+            proyecto.estado == EstadoProyecto.pendiente.value
+            and proyecto.etapas
+            and all(etapa_all_pedidos_financed(etapa) for etapa in proyecto.etapas)
         )
 
         # Count observaciones by status
         obs_pendientes = sum(
             1
             for obs in proyecto.observaciones
-            if obs.estado == EstadoObservacion.PENDIENTE.value
+            if obs.estado == EstadoObservacion.pendiente.value
         )
         obs_resueltas = sum(
             1
             for obs in proyecto.observaciones
-            if obs.estado == EstadoObservacion.RESUELTA.value
+            if obs.estado == EstadoObservacion.resuelta.value
         )
         # Vencidas are those pendientes with fecha_limite in the past
         today = date.today()
         obs_vencidas = sum(
             1
             for obs in proyecto.observaciones
-            if obs.estado == EstadoObservacion.PENDIENTE.value
+            if obs.estado == EstadoObservacion.pendiente.value
             and obs.fecha_limite < today
         )
 
@@ -262,17 +255,17 @@ class MetricsService:
         total_ofertas = (await db.execute(total_ofertas_stmt)).scalar_one()
 
         ofertas_aceptadas_stmt = select(func.count(Oferta.id)).where(
-            Oferta.estado == EstadoOferta.ACEPTADA.value
+            Oferta.estado == EstadoOferta.aceptada.value
         )
         ofertas_aceptadas = (await db.execute(ofertas_aceptadas_stmt)).scalar_one()
 
         ofertas_rechazadas_stmt = select(func.count(Oferta.id)).where(
-            Oferta.estado == EstadoOferta.RECHAZADA.value
+            Oferta.estado == EstadoOferta.rechazada.value
         )
         ofertas_rechazadas = (await db.execute(ofertas_rechazadas_stmt)).scalar_one()
 
         ofertas_pendientes_stmt = select(func.count(Oferta.id)).where(
-            Oferta.estado == EstadoOferta.PENDIENTE.value
+            Oferta.estado == EstadoOferta.pendiente.value
         )
         ofertas_pendientes = (await db.execute(ofertas_pendientes_stmt)).scalar_one()
 
@@ -281,25 +274,16 @@ class MetricsService:
             (ofertas_aceptadas / total_ofertas * 100) if total_ofertas > 0 else 0.0
         )
 
-        # Average response time (pedido creation to first oferta)
-        # Complex query - get all pedidos with their first oferta time
-        avg_time_stmt = select(
-            func.avg(
-                func.extract(
-                    "epoch", Oferta.created_at - Pedido.created_at
-                ) / 86400  # Convert seconds to days
-            )
-        ).join(Oferta.pedido)
-        avg_time_result = await db.execute(avg_time_stmt)
-        avg_time_days = avg_time_result.scalar_one()
+        # Note: Average response time cannot be calculated because Pedido model
+        # has no timestamp fields. This metric is set to None.
 
         # Top contributors (users with most ofertas)
         top_stmt = (
             select(
                 User,
                 func.count(Oferta.id).label("ofertas_count"),
-                func.count(
-                    func.case((Oferta.estado == EstadoOferta.ACEPTADA.value, 1))
+                func.sum(
+                    case((Oferta.estado == EstadoOferta.aceptada.value, 1), else_=0)
                 ).label("aceptadas_count"),
             )
             .join(Oferta, User.id == Oferta.user_id)
@@ -337,7 +321,7 @@ class MetricsService:
             select(func.coalesce(func.sum(Oferta.monto_ofrecido), 0))
             .join(Oferta.pedido)
             .where(
-                Oferta.estado == EstadoOferta.ACEPTADA.value,
+                Oferta.estado == EstadoOferta.aceptada.value,
                 Pedido.tipo == TipoPedido.ECONOMICO.value,
             )
         )
@@ -352,9 +336,7 @@ class MetricsService:
             ofertas_rechazadas=ofertas_rechazadas,
             ofertas_pendientes=ofertas_pendientes,
             tasa_aceptacion_porcentaje=round(tasa_aceptacion, 2),
-            tiempo_respuesta_promedio_dias=round(avg_time_days, 2)
-            if avg_time_days
-            else None,
+            tiempo_respuesta_promedio_dias=None,
             top_contribuidores=top_contribuidores,
             valor_total_solicitado=float(valor_solicitado),
             valor_total_comprometido=float(valor_comprometido),
@@ -371,27 +353,26 @@ class MetricsService:
         logger.info("Calculating performance metrics")
 
         # Average etapa duration (fecha_fin - fecha_inicio)
+        # Note: fecha_fin and fecha_inicio are Date fields, so subtraction gives days directly
         avg_etapa_stmt = select(
-            func.avg(
-                func.extract("epoch", Etapa.fecha_fin - Etapa.fecha_inicio) / 86400
-            )
+            func.avg(Etapa.fecha_fin - Etapa.fecha_inicio)
         )
         avg_etapa_days = (await db.execute(avg_etapa_stmt)).scalar_one()
 
-        # Average time from creation to EN_EJECUCION
+        # Average time from creation to en_ejecucion
         # This is approximate - we can only measure projects currently in execution
-        # Assumption: created_at to updated_at when estado is EN_EJECUCION
+        # Assumption: created_at to updated_at when estado is en_ejecucion
         avg_inicio_stmt = select(
             func.avg(
                 func.extract("epoch", Proyecto.updated_at - Proyecto.created_at) / 86400
             )
-        ).where(Proyecto.estado == EstadoProyecto.EN_EJECUCION.value)
+        ).where(Proyecto.estado == EstadoProyecto.en_ejecucion.value)
         avg_inicio_days = (await db.execute(avg_inicio_stmt)).scalar_one()
 
         # Projects stuck in planning for more than 30 days
         thirty_days_ago = datetime.now(timezone.utc).timestamp() - (30 * 86400)
         stuck_stmt = select(func.count(Proyecto.id)).where(
-            Proyecto.estado == EstadoProyecto.EN_PLANIFICACION.value,
+            Proyecto.estado == EstadoProyecto.pendiente.value,
             func.extract("epoch", Proyecto.created_at) < thirty_days_ago,
         )
         stuck_count = (await db.execute(stuck_stmt)).scalar_one()
@@ -401,19 +382,19 @@ class MetricsService:
         total_obs = (await db.execute(total_obs_stmt)).scalar_one()
 
         resueltas_stmt = select(func.count(Observacion.id)).where(
-            Observacion.estado == EstadoObservacion.RESUELTA.value
+            Observacion.estado == EstadoObservacion.resuelta.value
         )
         resueltas = (await db.execute(resueltas_stmt)).scalar_one()
 
         pendientes_stmt = select(func.count(Observacion.id)).where(
-            Observacion.estado == EstadoObservacion.PENDIENTE.value
+            Observacion.estado == EstadoObservacion.pendiente.value
         )
         pendientes = (await db.execute(pendientes_stmt)).scalar_one()
 
         # Vencidas (pendientes with fecha_limite < today)
         today = date.today()
         vencidas_stmt = select(func.count(Observacion.id)).where(
-            Observacion.estado == EstadoObservacion.PENDIENTE.value,
+            Observacion.estado == EstadoObservacion.pendiente.value,
             Observacion.fecha_limite < today,
         )
         vencidas = (await db.execute(vencidas_stmt)).scalar_one()
@@ -427,7 +408,7 @@ class MetricsService:
                 )
                 / 86400
             )
-        ).where(Observacion.estado == EstadoObservacion.RESUELTA.value)
+        ).where(Observacion.estado == EstadoObservacion.resuelta.value)
         avg_resolucion_days = (await db.execute(avg_resolucion_stmt)).scalar_one()
 
         return PerformanceMetrics(
@@ -437,7 +418,7 @@ class MetricsService:
             tiempo_inicio_promedio_dias=round(avg_inicio_days, 2)
             if avg_inicio_days
             else None,
-            proyectos_en_planificacion_mas_30_dias=stuck_count,
+            proyectos_pendientes_mas_30_dias=stuck_count,
             observaciones_total=total_obs,
             observaciones_resueltas=resueltas,
             observaciones_pendientes=pendientes,

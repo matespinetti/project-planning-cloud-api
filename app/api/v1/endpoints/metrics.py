@@ -38,7 +38,7 @@ async def get_dashboard_metrics(
     Obtener métricas generales del dashboard.
 
     **Métricas incluidas:**
-    - Distribución de proyectos por estado (borrador, en_planificacion, buscando_financiamiento, en_ejecucion, completo)
+    - Distribución de proyectos por estado (pendiente, en_ejecucion, finalizado)
     - Total de proyectos en el sistema
     - Proyectos activos (en ejecución)
     - Proyectos listos para iniciar (en planificación con todos los pedidos completados)
@@ -51,11 +51,9 @@ async def get_dashboard_metrics(
     ```json
     {
       "proyectos_por_estado": {
-        "borrador": 1,
-        "en_planificacion": 2,
-        "buscando_financiamiento": 2,
+        "pendiente": 2,
         "en_ejecucion": 2,
-        "completo": 1
+        "finalizado": 1
       },
       "total_proyectos": 8,
       "proyectos_activos": 2,
@@ -255,7 +253,7 @@ async def get_performance_metrics(
     {
       "tiempo_promedio_etapa_dias": 45.5,
       "tiempo_inicio_promedio_dias": 12.3,
-      "proyectos_en_planificacion_mas_30_dias": 3,
+      "proyectos_pendientes_mas_30_dias": 3,
       "observaciones_total": 20,
       "observaciones_resueltas": 12,
       "observaciones_pendientes": 6,
