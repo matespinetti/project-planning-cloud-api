@@ -13,13 +13,15 @@
 4. [Autenticación](#autenticación)
 5. [Endpoints de Autenticación](#endpoints-de-autenticación)
 6. [Endpoints de Proyectos](#endpoints-de-proyectos)
-7. [Endpoints de Pedidos](#endpoints-de-pedidos)
-8. [Endpoints de Ofertas](#endpoints-de-ofertas)
-9. [Endpoints de Observaciones](#endpoints-de-observaciones)
-10. [Enumeraciones](#enumeraciones)
-11. [Flujo Completo de Ejemplo](#flujo-completo-de-ejemplo)
-12. [Códigos de Error](#códigos-de-error)
-13. [Instrucciones para Pruebas](#instrucciones-para-pruebas)
+7. [Endpoints de Etapas](#endpoints-de-etapas)
+8. [Endpoints de Pedidos](#endpoints-de-pedidos)
+9. [Endpoints de Ofertas](#endpoints-de-ofertas)
+10. [Endpoints de Observaciones](#endpoints-de-observaciones)
+11. [Endpoints de Métricas](#endpoints-de-métricas)
+12. [Enumeraciones](#enumeraciones)
+13. [Flujo Completo de Ejemplo](#flujo-completo-de-ejemplo)
+14. [Códigos de Error](#códigos-de-error)
+15. [Instrucciones para Pruebas](#instrucciones-para-pruebas)
 
 ---
 
@@ -624,7 +626,132 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects \
 
 ---
 
-### 2️⃣ Obtener Proyecto por ID
+### 2️⃣ Obtener Todos los Proyectos
+
+Lista proyectos con paginación, filtros combinables y ordenamiento dinámico. Retorna una vista resumida para mostrar listados rápidos sin las etapas/pedidos anidados.
+
+**Método:** `GET`
+**Ruta:** `/api/v1/projects`
+**Autenticación:** Requerida (Bearer Token)
+**Código de Respuesta:** `200 OK`
+
+#### Query Parameters (Paginación)
+
+| Parámetro   | Tipo | Requerido | Descripción                                         |
+| ----------- | ---- | --------- | --------------------------------------------------- |
+| `page`      | int  | No        | Número de página (>=1). Default: `1`.               |
+| `page_size` | int  | No        | Items por página (1-100). Default: `20`.            |
+
+#### Query Parameters (Filtros Opcionales)
+
+| Parámetro    | Tipo    | Descripción                                                                                  |
+| ------------ | ------- | -------------------------------------------------------------------------------------------- |
+| `estado`     | string  | Filtra por estado exacto: `pendiente`, `en_ejecucion`, `finalizado`.                         |
+| `tipo`       | string  | Coincidencia parcial (case-insensitive) contra el tipo del proyecto.                         |
+| `pais`       | string  | Coincidencia parcial del país.                                                               |
+| `provincia`  | string  | Coincidencia parcial de la provincia.                                                        |
+| `ciudad`     | string  | Coincidencia parcial de la ciudad.                                                           |
+| `search`     | string  | Búsqueda texto libre en `titulo` y `descripcion` (case-insensitive).                         |
+| `user_id`    | UUID    | Filtra por dueño específico. Ignorado si `my_projects=true`.                                 |
+| `my_projects`| bool    | Si es `true`, solo retorna proyectos del usuario autenticado (sobrescribe `user_id`).        |
+
+#### Query Parameters (Ordenamiento)
+
+| Parámetro    | Tipo   | Descripción                                                                 |
+| ------------ | ------ | --------------------------------------------------------------------------- |
+| `sort_by`    | string | Campo para ordenar: `created_at`, `updated_at`, `titulo`. Default: `created_at`. |
+| `sort_order` | string | Dirección del orden: `asc` o `desc`. Default: `desc`.                        |
+
+#### Ejemplos de Uso
+
+```http
+# Página por defecto (20 items)
+GET /api/v1/projects
+
+# Solo mis proyectos
+GET /api/v1/projects?my_projects=true
+
+# Proyectos en ejecución en Buenos Aires
+GET /api/v1/projects?estado=en_ejecucion&provincia=Buenos Aires
+
+# Búsqueda por texto y paginada
+GET /api/v1/projects?search=huerta&page=2&page_size=10&sort_by=titulo&sort_order=asc
+```
+
+#### Response Exitoso (200)
+
+```json
+{
+	"items": [
+		{
+			"id": "123e4567-e89b-12d3-a456-426614174000",
+			"user_id": "550e8400-e29b-41d4-a716-446655440000",
+			"titulo": "Centro Comunitario La Plata",
+			"descripcion": "Construcción de un nuevo centro comunitario con servicios sociales.",
+			"tipo": "Infraestructura Social",
+			"pais": "Argentina",
+			"provincia": "Buenos Aires",
+			"ciudad": "La Plata",
+			"barrio": "Centro",
+			"estado": "pendiente",
+			"created_at": "2024-10-22T14:30:00+00:00",
+			"updated_at": "2024-10-22T14:30:00+00:00"
+		},
+		{
+			"id": "223e4567-e89b-12d3-a456-426614174111",
+			"user_id": "550e8400-e29b-41d4-a716-446655440001",
+			"titulo": "Huerta Urbana Comunitaria",
+			"descripcion": "Implementación de una huerta urbana para 40 familias.",
+			"tipo": "Agricultura Urbana",
+			"pais": "Argentina",
+			"provincia": "Buenos Aires",
+			"ciudad": "Quilmes",
+			"barrio": "Bernal",
+			"estado": "en_ejecucion",
+			"created_at": "2024-09-10T10:00:00+00:00",
+			"updated_at": "2024-10-01T08:15:00+00:00"
+		}
+	],
+	"total": 42,
+	"page": 1,
+	"page_size": 20,
+	"total_pages": 3
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                                                           | Solución                                                 |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                   | Proporciona un access_token válido en el header          |
+| `422`  | Parámetros inválidos      | `{"detail": "Invalid estado value: borrador. Must be one of: pendiente, en_ejecucion, finalizado"}`                        | Usa valores permitidos para `estado`, `sort_by`, etc.    |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "GET /api/v1/projects"
+3. Click "Try it out"
+4. (Opcional) Completa filtros/paginación y presiona "Execute"
+
+**Opción 2: cURL**
+
+```bash
+TOKEN="tu_access_token_aqui"
+
+# Listar todos los proyectos (página 1)
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/projects \
+  -H "Authorization: Bearer $TOKEN"
+
+# Buscar mis proyectos en ejecución ordenados por título ascendente
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/projects?my_projects=true&estado=en_ejecucion&sort_by=titulo&sort_order=asc" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 3️⃣ Obtener Proyecto por ID
 
 Recupera un proyecto específico con todas sus etapas y pedidos anidados.
 
@@ -678,7 +805,7 @@ curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/projects/$PRO
 
 ---
 
-### 3️⃣ Actualizar Proyecto (Parcial)
+### 4️⃣ Actualizar Proyecto (Parcial)
 
 Actualiza campos específicos del proyecto usando PATCH (solo se actualizan los campos proporcionados).
 
@@ -762,7 +889,7 @@ curl -X PATCH https://project-planning-cloud-api.onrender.com/api/v1/projects/$P
 
 ---
 
-### 4️⃣ Eliminar Proyecto
+### 5️⃣ Eliminar Proyecto
 
 Elimina un proyecto y **toda su estructura anidada** (etapas, pedidos, ofertas).
 
@@ -818,7 +945,7 @@ curl -X DELETE https://project-planning-cloud-api.onrender.com/api/v1/projects/$
 
 ---
 
-### 5️⃣ Iniciar Proyecto
+### 6️⃣ Iniciar Proyecto
 
 Inicia un proyecto cambiando su estado de `pendiente` a `en_ejecucion`.
 
@@ -929,7 +1056,7 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects/$PR
 
 ---
 
-### 6️⃣ Finalizar Proyecto
+### 7️⃣ Finalizar Proyecto
 
 Marca un proyecto como `finalizado` una vez que todas sus etapas se completaron.
 
@@ -975,6 +1102,227 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/projects/$PR
 
 -   Status code: `400 Bad Request`
 -   Body: JSON con mensaje y lista de pedidos no completados
+
+---
+
+## Endpoints de Etapas
+
+### 1️⃣ Listar Etapas de un Proyecto
+
+Obtiene todas las etapas de un proyecto con información detallada de pedidos, conteo de pendientes y filtros por estado.
+
+**Método:** `GET`
+**Ruta:** `/api/v1/projects/{project_id}/etapas`
+**Autenticación:** Requerida (Bearer Token)
+**Código de Respuesta:** `200 OK`
+
+#### Path Parameters
+
+| Parámetro    | Tipo | Descripción              |
+| ------------ | ---- | ------------------------ |
+| `project_id` | UUID | ID del proyecto objetivo |
+
+#### Query Parameters (Opcional)
+
+| Parámetro | Tipo  | Descripción                                                                       |
+| --------- | ----- | --------------------------------------------------------------------------------- |
+| `estado`  | enum  | Filtra por estado específico: `pendiente`, `financiada`, `en_ejecucion`, `completada`. |
+
+#### ¿Qué incluye la respuesta?
+
+-   Lista ordenada por `fecha_inicio`
+-   Información completa de cada etapa (fechas, estado, pedidos)
+-   Conteo de pedidos totales y pendientes para saber si puede iniciarse
+
+#### Response Exitoso (200)
+
+```json
+{
+	"etapas": [
+		{
+			"id": "223e4567-e89b-12d3-a456-426614174111",
+			"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+			"nombre": "Fase 1 - Cimientos",
+			"descripcion": "Preparación del terreno y construcción de cimientos",
+			"fecha_inicio": "2024-11-01",
+			"fecha_fin": "2024-12-31",
+			"estado": "pendiente",
+			"fecha_completitud": null,
+			"pedidos": [
+				{
+					"id": "323e4567-e89b-12d3-a456-426614174222",
+					"descripcion": "Presupuesto para materiales de cimentación",
+					"tipo": "economico",
+					"estado": "PENDIENTE",
+					"monto": 50000.0,
+					"moneda": "ARS",
+					"cantidad": null,
+					"unidad": null
+				}
+			],
+			"pedidos_pendientes_count": 1,
+			"pedidos_total_count": 2
+		},
+		{
+			"id": "223e4567-e89b-12d3-a456-426614174112",
+			"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+			"nombre": "Fase 2 - Estructura",
+			"descripcion": "Construcción de estructura principal del edificio",
+			"fecha_inicio": "2025-01-01",
+			"fecha_fin": "2025-03-31",
+			"estado": "financiada",
+			"fecha_completitud": null,
+			"pedidos": [],
+			"pedidos_pendientes_count": 0,
+			"pedidos_total_count": 0
+		}
+	],
+	"total": 2
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                                      | Solución                                       |
+| ------ | ------------------------- | ----------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Not authenticated"}`                                                                     | Autentícate y envía el header Authorization.   |
+| `422`  | Valor de estado inválido  | `{"detail": [{"loc": ["query", "estado"], "msg": "value is not a valid enumeration member", ...}]}`   | Usa los valores permitidos para `estado`.      |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI**
+
+1. Autentícate en `POST /api/v1/auth/login`.
+2. Abre `GET /api/v1/projects/{project_id}/etapas`.
+3. Click "Try it out", ingresa el `project_id` y (opcional) `estado`.
+4. Ejecuta la petición.
+
+**Opción 2: cURL**
+
+```bash
+TOKEN="tu_access_token_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID/etapas \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 2️⃣ Iniciar Etapa
+
+Cambia una etapa del estado `financiada` (o `pendiente` sin pedidos abiertos) a `en_ejecucion`. Valida automáticamente que el proyecto esté en ejecución y que no existan pedidos pendientes.
+
+**Método:** `POST`
+**Ruta:** `/api/v1/etapas/{etapa_id}/start`
+**Autenticación:** Requerida (Bearer Token)
+**Código de Respuesta:** `200 OK`
+**Restricción:** Solo el propietario del proyecto puede iniciar etapas
+
+#### Path Parameters
+
+| Parámetro  | Tipo | Descripción              |
+| ---------- | ---- | ------------------------ |
+| `etapa_id` | UUID | ID de la etapa a iniciar |
+
+#### Response Exitoso (200)
+
+```json
+{
+	"id": "223e4567-e89b-12d3-a456-426614174111",
+	"nombre": "Fase 1 - Cimientos",
+	"estado": "en_ejecucion",
+	"message": "Etapa iniciada exitosamente"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                  | Ejemplo de Error                                                                                                                       | Solución                                                                                     |
+| ------ | ---------------------------- | -------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------- |
+| `401`  | Token inválido o faltante    | `{"detail": "Not authenticated"}`                                                                                                      | Envía un access token válido.                                                                |
+| `403`  | No sos dueño del proyecto    | `{"detail": "Only the project owner can start etapas"}`                                                                                | Solo el propietario del proyecto puede iniciar etapas.                                       |
+| `404`  | Etapa inexistente            | `{"detail": "Etapa with id 223e4567-e89b-12d3-a456-426614174111 not found"}`                                                           | Verifica el `etapa_id`.                                                                     |
+| `400`  | Proyecto en estado incorrecto| `{"detail": "Project must be 'en_ejecucion' to start etapas. Current state: pendiente"}`                                               | El proyecto debe estar en ejecución.                                                         |
+| `400`  | Pedidos pendientes           | `{"detail": {"message": "Cannot start etapa with 2 pending pedidos...", "pending_pedidos": [{"id": "...", "tipo": "materiales"}]}}`    | Completa o financia todos los pedidos antes de iniciar.                                      |
+| `400`  | Etapa ya iniciada/completada | `{"detail": "Etapa is already in execution"}` o `{"detail": "Cannot start a completed etapa"}`                                         | No se puede reiniciar una etapa ya en ejecución o completada.                                |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI**
+
+1. Autentícate con el propietario del proyecto.
+2. Busca `POST /api/v1/etapas/{etapa_id}/start`.
+3. Click "Try it out" y pega el `etapa_id`.
+4. Ejecuta y verifica el nuevo estado.
+
+**Opción 2: cURL**
+
+```bash
+TOKEN="tu_access_token_del_propietario"
+ETAPA_ID="223e4567-e89b-12d3-a456-426614174111"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/etapas/$ETAPA_ID/start \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 3️⃣ Completar Etapa
+
+Marca una etapa como `completada`, agregando automáticamente la `fecha_completitud`. Solo se puede ejecutar si la etapa ya está `en_ejecucion`.
+
+**Método:** `POST`
+**Ruta:** `/api/v1/etapas/{etapa_id}/complete`
+**Autenticación:** Requerida (Bearer Token)
+**Código de Respuesta:** `200 OK`
+**Restricción:** Solo el propietario del proyecto puede completarla
+
+#### Path Parameters
+
+| Parámetro  | Tipo | Descripción               |
+| ---------- | ---- | ------------------------- |
+| `etapa_id` | UUID | ID de la etapa a completar |
+
+#### Response Exitoso (200)
+
+```json
+{
+	"id": "223e4567-e89b-12d3-a456-426614174111",
+	"nombre": "Fase 1 - Cimientos",
+	"estado": "completada",
+	"fecha_completitud": "2024-12-20T14:10:00.123456+00:00",
+	"message": "Etapa completada exitosamente"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                  | Ejemplo de Error                                                                                                                          | Solución                                                   |
+| ------ | ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `401`  | Token inválido o faltante    | `{"detail": "Not authenticated"}`                                                                                                         | Incluye un access token válido.                            |
+| `403`  | No sos dueño del proyecto    | `{"detail": "Only the project owner can complete etapas"}`                                                                                | Solo el propietario puede completar etapas.                |
+| `404`  | Etapa inexistente            | `{"detail": "Etapa with id 223e4567-e89b-12d3-a456-426614174111 not found"}`                                                              | Revisa el `etapa_id`.                                      |
+| `400`  | Proyecto en estado incorrecto| `{"detail": "Project must be 'en_ejecucion' to complete etapas. Current state: finalizado"}`                                              | El proyecto debe seguir en ejecución.                      |
+| `400`  | Etapa en estado inválido     | `{"detail": "Etapa can only be completed from 'en_ejecucion' state. Current state: financiada"}`                                          | Primero inicia la etapa (`/start`).                        |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI**
+
+1. Autentícate con el dueño del proyecto.
+2. Selecciona `POST /api/v1/etapas/{etapa_id}/complete`.
+3. Ingresa el `etapa_id` y ejecuta la petición.
+
+**Opción 2: cURL**
+
+```bash
+TOKEN="tu_access_token_del_propietario"
+ETAPA_ID="223e4567-e89b-12d3-a456-426614174111"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/etapas/$ETAPA_ID/complete \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 
@@ -2008,6 +2356,242 @@ Este es el flujo típico de trabajo con observaciones:
 - La verificación ocurre **al momento de listar o consultar** la observación
 - Si una observación tiene más de 5 días sin resolver, se marca como `vencida` en ese momento
 - Esto optimiza el rendimiento evitando procesos en background
+
+---
+
+## Endpoints de Métricas
+
+El módulo de métricas expone indicadores listos para tableros (PowerBI, Grafana, dashboards internos) sin que el frontend tenga que recalcularlos. Todos los endpoints requieren JWT pero cualquier usuario autenticado puede consultarlos.
+
+### 1️⃣ Dashboard de Proyectos
+
+Estadísticas globales del sistema para alimentar el dashboard principal.
+
+**Método:** `GET`  
+**Ruta:** `/api/v1/metrics/dashboard`  
+**Autenticación:** Requerida (Bearer Token)  
+**Código de Respuesta:** `200 OK`
+
+#### Métricas incluidas
+
+- Conteo de proyectos por estado (`pendiente`, `en_ejecucion`, `finalizado`)
+- Totales generales (proyectos creados, activos y listos para iniciar)
+- `tasa_exito`: porcentaje de proyectos finalizados sobre el total
+
+#### Response Exitoso (200)
+
+```json
+{
+	"proyectos_por_estado": {
+		"pendiente": 2,
+		"en_ejecucion": 3,
+		"finalizado": 1
+	},
+	"total_proyectos": 6,
+	"proyectos_activos": 3,
+	"proyectos_listos_para_iniciar": 1,
+	"tasa_exito": 16.67
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                        | Solución                                  |
+| ------ | ------------------------- | --------------------------------------- | ----------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}` | Envía un access token válido (Bearer).    |
+
+#### Instrucciones para Probar
+
+- **Swagger UI:** Ejecuta `GET /api/v1/metrics/dashboard` luego de autenticarte.
+- **cURL:**
+
+```bash
+TOKEN="tu_access_token_aqui"
+
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/metrics/dashboard \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 2️⃣ Seguimiento Detallado de Proyecto
+
+Muestra todas las métricas operativas de un proyecto (progreso, pedidos, observaciones, posibilidad de inicio).
+
+**Método:** `GET`  
+**Ruta:** `/api/v1/metrics/projects/{project_id}/tracking`  
+**Autenticación:** Requerida (Bearer Token)  
+**Código de Respuesta:** `200 OK`
+
+#### Path Parameters
+
+| Parámetro    | Tipo | Descripción                   |
+| ------------ | ---- | ----------------------------- |
+| `project_id` | UUID | ID del proyecto a monitorizar |
+
+#### Métricas incluidas
+
+- Progreso porcentual por etapa y global
+- Cantidad de pedidos completados/pendientes
+- Observaciones por estado (pendientes, resueltas, vencidas)
+- Indicador `puede_iniciar` (todos los pedidos completados)
+
+#### Response Exitoso (200)
+
+```json
+{
+	"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+	"titulo": "Centro Comunitario Barrio Norte",
+	"estado": "en_ejecucion",
+	"etapas": [
+		{
+			"etapa_id": "223e4567-e89b-12d3-a456-426614174111",
+			"nombre": "Fundaciones",
+			"total_pedidos": 3,
+			"pedidos_completados": 2,
+			"pedidos_pendientes": 1,
+			"progreso_porcentaje": 66.67,
+			"dias_planificados": 45,
+			"dias_transcurridos": 30
+		}
+	],
+	"total_pedidos": 5,
+	"pedidos_completados": 3,
+	"pedidos_pendientes": 2,
+	"progreso_global_porcentaje": 60.0,
+	"observaciones_pendientes": 1,
+	"observaciones_resueltas": 2,
+	"observaciones_vencidas": 0,
+	"puede_iniciar": false
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                | Solución                                        |
+| ------ | ------------------------- | ------------------------------------------------------------------------------- | ----------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                        | Autentícate antes de llamar al endpoint.        |
+| `404`  | Proyecto no encontrado    | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}` | Revisa que el `project_id` exista en la base.   |
+
+#### Instrucciones para Probar
+
+```bash
+TOKEN="tu_access_token_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/metrics/projects/$PROJECT_ID/tracking \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 3️⃣ Métricas de Compromisos (Ofertas)
+
+Analiza la participación de la red en la cobertura de pedidos.
+
+**Método:** `GET`  
+**Ruta:** `/api/v1/metrics/commitments`  
+**Autenticación:** Requerida (Bearer Token)  
+**Código de Respuesta:** `200 OK`
+
+#### Métricas incluidas
+
+- Cobertura de ofertas y tasa de aceptación
+- Distribución de ofertas por estado
+- Tiempo promedio de respuesta de la comunidad
+- Top 5 contribuidores con más ofertas/aceptaciones
+- Totales monetarios: solicitado vs comprometido
+
+#### Response Exitoso (200)
+
+```json
+{
+	"total_pedidos": 12,
+	"pedidos_con_ofertas": 9,
+	"cobertura_ofertas_porcentaje": 75.0,
+	"total_ofertas": 18,
+	"ofertas_aceptadas": 6,
+	"ofertas_pendientes": 9,
+	"tasa_aceptacion_porcentaje": 33.33,
+	"tiempo_respuesta_promedio_dias": 2.5,
+	"top_contribuidores": [
+		{
+			"user_id": "550e8400-e29b-41d4-a716-446655440003",
+			"nombre": "Lucía",
+			"apellido": "Gómez",
+			"ong": "Construcciones Solidarias",
+			"ofertas_realizadas": 7,
+			"ofertas_aceptadas": 3,
+			"tasa_aceptacion": 42.86
+		}
+	],
+	"valor_total_solicitado": 500000.0,
+	"valor_total_comprometido": 360000.0
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                        | Solución                     |
+| ------ | ------------------------- | --------------------------------------- | ---------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}` | Autentícate nuevamente.      |
+
+#### Instrucciones para Probar
+
+```bash
+TOKEN="tu_access_token_aqui"
+
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/metrics/commitments \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 4️⃣ Métricas de Rendimiento del Sistema
+
+Indicadores transversales de eficiencia del proceso (tiempos, observaciones, proyectos estancados).
+
+**Método:** `GET`  
+**Ruta:** `/api/v1/metrics/performance`  
+**Autenticación:** Requerida (Bearer Token)  
+**Código de Respuesta:** `200 OK`
+
+#### Métricas incluidas
+
+- Tiempo promedio por etapa y desde creación hasta inicio de proyecto
+- Cantidad de proyectos pendientes por más de 30 días
+- Estado de observaciones (total, resueltas, pendientes, vencidas)
+- Tiempo promedio de resolución de observaciones
+
+#### Response Exitoso (200)
+
+```json
+{
+	"tiempo_promedio_etapa_dias": 45.5,
+	"tiempo_inicio_promedio_dias": 12.3,
+	"proyectos_pendientes_mas_30_dias": 3,
+	"observaciones_total": 20,
+	"observaciones_resueltas": 12,
+	"observaciones_pendientes": 6,
+	"observaciones_vencidas": 2,
+	"tiempo_resolucion_observaciones_promedio_dias": 4.2
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                        | Solución                         |
+| ------ | ------------------------- | --------------------------------------- | -------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}` | Autorízate con un access token. |
+
+#### Instrucciones para Probar
+
+```bash
+TOKEN="tu_access_token_aqui"
+
+curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/metrics/performance \
+  -H "Authorization: Bearer $TOKEN"
+```
 
 ---
 
