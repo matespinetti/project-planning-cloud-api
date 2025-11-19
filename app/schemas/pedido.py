@@ -26,6 +26,28 @@ class PedidoCreate(BaseModel):
         return v
 
 
+class PedidoUpdate(BaseModel):
+    """Schema for updating a pedido."""
+
+    tipo: Optional[str] = Field(None, min_length=1)
+    descripcion: Optional[str] = Field(None, min_length=5)
+    monto: Optional[float] = Field(None, gt=0)
+    moneda: Optional[str] = Field(None, max_length=10)
+    cantidad: Optional[int] = Field(None, gt=0)
+    unidad: Optional[str] = Field(None, max_length=50)
+
+    @field_validator("tipo")
+    @classmethod
+    def validate_tipo(cls, v: Optional[str]) -> Optional[str]:
+        """Validate tipo is one of the allowed values."""
+        if v is None:
+            return v
+        allowed = ["economico", "materiales", "mano_obra", "transporte", "equipamiento"]
+        if v not in allowed:
+            raise ValueError(f"tipo must be one of {allowed}")
+        return v
+
+
 class PedidoResponse(BaseModel):
     """Schema for pedido response."""
 

@@ -13,7 +13,7 @@ from app.models.etapa import Etapa
 from app.models.pedido import EstadoPedido, Pedido
 from app.models.proyecto import Proyecto
 from app.models.user import User
-from app.schemas.pedido import PedidoCreate
+from app.schemas.pedido import PedidoCreate, PedidoUpdate
 from app.services.state_machine import refresh_etapa_state
 
 logger = logging.getLogger(__name__)
@@ -102,6 +102,76 @@ class PedidoService:
     async def get_by_id(db: AsyncSession, pedido_id: UUID) -> Optional[Pedido]:
         """Get a pedido by ID."""
         return await db.get(Pedido, pedido_id)
+
+    @staticmethod
+    async def update(
+        db: AsyncSession,
+        pedido_id: UUID,
+        pedido_data: PedidoUpdate,
+        user: User,
+    ) -> Pedido:
+        """
+        Update a pedido.
+        Only the project owner can update pedidos.
+        Pedidos can only be updated if they are in PENDIENTE state.
+        """
+        # Get pedido
+        pedido = await db.get(Pedido, pedido_id)
+        if not pedido:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Pedido with id {pedido_id} not found",
+            )
+
+        # Get etapa to verify proyecto ownership
+        etapa = await db.get(Etapa, pedido.etapa_id)
+        if not etapa:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Etapa not found",
+            )
+
+        # Get proyecto to verify ownership
+        proyecto = await db.get(Proyecto, etapa.proyecto_id)
+        if not proyecto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Proyecto not found",
+            )
+
+        if proyecto.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the project owner can update pedidos",
+            )
+
+        # Validate that pedido is in PENDIENTE state (can only update pending pedidos)
+        if pedido.estado != EstadoPedido.PENDIENTE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot update pedido in state '{pedido.estado.value}'. "
+                       "Pedidos can only be updated while in PENDIENTE state.",
+            )
+
+        # Update fields that are provided
+        if pedido_data.tipo is not None:
+            pedido.tipo = pedido_data.tipo
+        if pedido_data.descripcion is not None:
+            pedido.descripcion = pedido_data.descripcion
+        if pedido_data.monto is not None:
+            pedido.monto = pedido_data.monto
+        if pedido_data.moneda is not None:
+            pedido.moneda = pedido_data.moneda
+        if pedido_data.cantidad is not None:
+            pedido.cantidad = pedido_data.cantidad
+        if pedido_data.unidad is not None:
+            pedido.unidad = pedido_data.unidad
+
+        await db.commit()
+        await db.refresh(pedido)
+
+        logger.info(f"Pedido {pedido_id} updated by user {user.id}")
+        return pedido
 
     @staticmethod
     async def list_by_proyecto(

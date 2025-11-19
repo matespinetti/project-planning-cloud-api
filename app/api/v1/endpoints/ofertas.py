@@ -13,9 +13,11 @@ from app.models.user import User
 from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
 from app.schemas.oferta import (
     OfertaCreate,
+    OfertaUpdate,
     OfertaResponse,
     OfertaWithUserResponse,
     OfertaWithPedidoResponse,
+    OfertaDetailedResponse,
     OfertaConfirmacionResponse,
 )
 from app.services.oferta_service import OfertaService
@@ -382,3 +384,242 @@ async def get_my_commitments(
         response_ofertas.append(OfertaWithPedidoResponse(**oferta_dict))
 
     return response_ofertas
+
+
+@router.get(
+    "/ofertas/mis-ofertas",
+    response_model=List[OfertaDetailedResponse],
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid estado_oferta filter value",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["query", "estado_oferta"],
+                                "msg": "value is not a valid enumeration member",
+                                "type": "type_error.enum",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_all_user_ofertas(
+    estado_oferta: str = None,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> List[OfertaDetailedResponse]:
+    """
+    Obtener todas las ofertas que el usuario autenticado ha creado (pendientes, aceptadas y rechazadas).
+    Opcionalmente filtrar por estado de la oferta: 'pendiente', 'aceptada' o 'rechazada'.
+
+    Cada oferta retorna información anidada del pedido y su etapa asociada para facilitar la visualización en el frontend.
+
+    - **estado_oferta**: Filtro opcional por estado de la oferta (pendiente, aceptada o rechazada)
+    """
+    logger.info(f"User {current_user.id} fetching all their ofertas")
+
+    ofertas = await OfertaService.get_all_user_ofertas(db, current_user, estado_oferta)
+
+    # Convert to response schema with nested pedido and etapa info
+    response_ofertas = []
+    for oferta in ofertas:
+        # Build pedido info with nested etapa
+        pedido_data = {
+            "id": oferta.pedido.id,
+            "tipo": oferta.pedido.tipo.value,
+            "descripcion": oferta.pedido.descripcion,
+            "estado": oferta.pedido.estado.value,
+            "monto": oferta.pedido.monto,
+            "moneda": oferta.pedido.moneda,
+            "cantidad": oferta.pedido.cantidad,
+            "unidad": oferta.pedido.unidad,
+            "etapa": {
+                "id": oferta.pedido.etapa.id,
+                "nombre": oferta.pedido.etapa.nombre,
+                "estado": oferta.pedido.etapa.estado.value,
+            },
+        }
+
+        # Build complete oferta response
+        oferta_data = {
+            "id": oferta.id,
+            "pedido_id": oferta.pedido_id,
+            "user_id": oferta.user_id,
+            "descripcion": oferta.descripcion,
+            "monto_ofrecido": oferta.monto_ofrecido,
+            "estado": oferta.estado.value,
+            "created_at": oferta.created_at,
+            "updated_at": oferta.updated_at,
+            "pedido": pedido_data,
+        }
+
+        response_ofertas.append(OfertaDetailedResponse(**oferta_data))
+
+    return response_ofertas
+
+
+@router.get(
+    "/ofertas/{oferta_id}",
+    response_model=OfertaResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Oferta does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Oferta with id 523e4567-e89b-12d3-a456-426614174444 not found"
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_oferta(
+    oferta_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> OfertaResponse:
+    """
+    Obtener detalles de una oferta específica.
+    """
+    logger.info(f"User {current_user.id} fetching oferta {oferta_id}")
+
+    oferta = await OfertaService.get_oferta_by_id(db, oferta_id)
+
+    if not oferta:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Oferta with id {oferta_id} not found",
+        )
+
+    return OfertaResponse.model_validate(oferta)
+
+
+@router.patch(
+    "/ofertas/{oferta_id}",
+    response_model=OfertaResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the creator of the oferta",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Only the user who created the oferta can update it"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Oferta does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Oferta with id 523e4567-e89b-12d3-a456-426614174444 not found"
+                    }
+                }
+            },
+        },
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Oferta cannot be updated in current state",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Cannot update oferta in state 'aceptada'. Ofertas can only be updated while in PENDIENTE state."
+                    }
+                }
+            },
+        },
+    },
+)
+async def update_oferta(
+    oferta_id: UUID,
+    oferta_data: OfertaUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> OfertaResponse:
+    """
+    Actualizar una oferta.
+    Solo el usuario que creó la oferta puede actualizarla.
+    Las ofertas solo pueden actualizarse si están en estado PENDIENTE.
+
+    Campos que se pueden actualizar:
+    - descripcion: Descripción actualizada de la oferta
+    - monto_ofrecido: Monto actualizado ofrecido
+    """
+    logger.info(f"User {current_user.id} updating oferta {oferta_id}")
+
+    oferta = await OfertaService.update(db, oferta_id, oferta_data, current_user)
+
+    return OfertaResponse.model_validate(oferta)
+
+
+@router.delete(
+    "/ofertas/{oferta_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the creator of the oferta",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Only the user who created the oferta can delete it"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Oferta does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Oferta with id 523e4567-e89b-12d3-a456-426614174444 not found"
+                    }
+                }
+            },
+        },
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Oferta cannot be deleted in current state",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Cannot delete oferta in state 'aceptada'. Ofertas can only be deleted while in PENDIENTE state."
+                    }
+                }
+            },
+        },
+    },
+)
+async def delete_oferta(
+    oferta_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> None:
+    """
+    Eliminar una oferta.
+    Solo el usuario que creó la oferta puede eliminarla.
+    Las ofertas solo pueden eliminarse si están en estado PENDIENTE.
+    """
+    logger.info(f"User {current_user.id} deleting oferta {oferta_id}")
+
+    deleted = await OfertaService.delete_oferta(db, oferta_id, current_user)
+
+    if not deleted:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Oferta with id {oferta_id} not found",
+        )
+
+    logger.info(f"Successfully deleted oferta {oferta_id}")
