@@ -264,6 +264,154 @@ class ObservacionService:
         return observacion
 
     @staticmethod
+    async def get_all_observaciones(
+        db: AsyncSession,
+        current_user: User,
+        estado_filter: Optional[str] = None,
+        proyecto_id: Optional[UUID] = None,
+        council_user_id: Optional[UUID] = None,
+        search: Optional[str] = None,
+        sort_by: str = "created_at",
+        sort_order: str = "desc",
+        fecha_desde: Optional[date] = None,
+        fecha_hasta: Optional[date] = None,
+        page: int = 1,
+        page_size: int = 20,
+    ) -> tuple[List[Observacion], int]:
+        """
+        Get all observaciones with advanced filtering, searching, sorting, and pagination.
+
+        Authorization:
+        - COUNCIL users: See all observaciones they created
+        - MEMBER users: See only observaciones for their own projects (as executor)
+
+        Args:
+            db: Database session
+            current_user: Currently authenticated user
+            estado_filter: Optional filter by estado (pendiente, resuelta, vencida)
+            proyecto_id: Optional filter by specific project
+            council_user_id: Optional filter by council member who created
+            search: Optional search string in descripcion and respuesta
+            sort_by: Field to sort by (created_at, fecha_limite, fecha_resolucion, updated_at)
+            sort_order: Sort order (asc, desc)
+            fecha_desde: Optional filter - created after this date
+            fecha_hasta: Optional filter - created before this date
+            page: Page number (1-indexed)
+            page_size: Results per page
+
+        Returns:
+            Tuple of (list of Observacion instances, total count)
+
+        Raises:
+            HTTPException: If invalid filter values provided
+        """
+        from sqlalchemy import and_, or_
+
+        # Start with base query
+        stmt = (
+            select(Observacion)
+            .options(
+                joinedload(Observacion.proyecto),
+                joinedload(Observacion.council_user),
+            )
+        )
+
+        # Authorization: MEMBER users can only see observations for their projects
+        if current_user.role == UserRole.MEMBER:
+            # Only show observations where current_user is the project executor (owner)
+            stmt = stmt.where(Observacion.proyecto.has(Proyecto.user_id == current_user.id))
+        # COUNCIL users see all observations they created
+
+        # Apply filters
+        filters = []
+
+        # Estado filter
+        if estado_filter:
+            valid_estados = ["pendiente", "resuelta", "vencida"]
+            if estado_filter not in valid_estados:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid estado filter. Must be one of: {valid_estados}",
+                )
+            filters.append(Observacion.estado == EstadoObservacion(estado_filter))
+
+        # Proyecto filter
+        if proyecto_id:
+            filters.append(Observacion.proyecto_id == proyecto_id)
+
+        # Council user filter (only applies if user has permission to see those observations)
+        if council_user_id:
+            filters.append(Observacion.council_user_id == council_user_id)
+
+        # Date range filters
+        if fecha_desde:
+            filters.append(Observacion.created_at >= datetime.combine(fecha_desde, datetime.min.time()))
+        if fecha_hasta:
+            filters.append(
+                Observacion.created_at < datetime.combine(fecha_hasta + timedelta(days=1), datetime.min.time())
+            )
+
+        # Search filter (full-text search on descripcion and respuesta)
+        if search:
+            search_term = f"%{search}%"
+            filters.append(
+                or_(
+                    Observacion.descripcion.ilike(search_term),
+                    Observacion.respuesta.ilike(search_term),
+                )
+            )
+
+        # Apply all filters
+        if filters:
+            stmt = stmt.where(and_(*filters))
+
+        # Get total count before pagination
+        count_stmt = select(Observacion).where(stmt.whereclause)
+        count_result = await db.execute(count_stmt)
+        total_count = len(count_result.scalars().all())
+
+        # Apply sorting
+        valid_sort_fields = {
+            "created_at": Observacion.created_at,
+            "fecha_limite": Observacion.fecha_limite,
+            "fecha_resolucion": Observacion.fecha_resolucion,
+            "updated_at": Observacion.updated_at,
+        }
+        if sort_by not in valid_sort_fields:
+            sort_by = "created_at"
+        
+        sort_column = valid_sort_fields[sort_by]
+        if sort_order.lower() == "asc":
+            stmt = stmt.order_by(sort_column.asc())
+        else:
+            stmt = stmt.order_by(sort_column.desc())
+
+        # Apply pagination
+        offset = (page - 1) * page_size
+        stmt = stmt.offset(offset).limit(page_size)
+
+        # Execute query
+        result = await db.execute(stmt)
+        observaciones = list(result.unique().scalars().all())
+
+        # Check and update overdue observations
+        updated = False
+        for obs in observaciones:
+            if ObservacionService._check_and_update_overdue(obs):
+                updated = True
+
+        if updated:
+            await db.commit()
+            for obs in observaciones:
+                await db.refresh(obs)
+
+        logger.info(
+            f"Retrieved {len(observaciones)} observaciones for user {current_user.id} "
+            f"(total: {total_count}, page: {page}, page_size: {page_size})"
+        )
+        return observaciones, total_count
+
+    @staticmethod
     def _check_and_update_overdue(observacion: Observacion) -> bool:
         """
         Check if an observacion is overdue and update status if needed.

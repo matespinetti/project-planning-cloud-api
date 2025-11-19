@@ -2389,7 +2389,185 @@ curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/projects/$PR
 
 ---
 
-### 3️⃣ Resolver Observación
+### 3️⃣ Listar Todas las Observaciones (Global)
+
+Obtiene todas las observaciones con filtrado avanzado, búsqueda, ordenamiento y paginación. Perfecto para dashboards y reportes.
+
+**Método:** `GET`
+**Ruta:** `/api/v1/observaciones`
+**Autenticación:** Requerida (Bearer Token)
+**Código de Respuesta:** `200 OK`
+
+#### Autorización Automática
+
+- **COUNCIL users:** Ven todas las observaciones que crearon
+- **MEMBER users:** Ven solo observaciones para sus propios proyectos (como ejecutor)
+
+#### Query Parameters (Paginación)
+
+| Parámetro   | Tipo | Requerido | Default | Descripción                              |
+| ----------- | ---- | --------- | ------- | ---------------------------------------- |
+| `page`      | int  | No        | 1       | Número de página (mínimo 1)              |
+| `page_size` | int  | No        | 20      | Resultados por página (máximo 100)       |
+
+#### Query Parameters (Filtrado)
+
+| Parámetro         | Tipo   | Requerido | Default | Descripción                                                     |
+| ----------------- | ------ | --------- | ------- | --------------------------------------------------------------- |
+| `estado`          | string | No        | -       | Filtrar por estado (pendiente, resuelta, vencida)               |
+| `proyecto_id`     | UUID   | No        | -       | Filtrar por proyecto específico                                 |
+| `council_user_id` | UUID   | No        | -       | Filtrar por consejero que creó la observación                   |
+| `search`          | string | No        | -       | Buscar en descripción y respuesta (mínimo 3 caracteres)         |
+| `fecha_desde`     | date   | No        | -       | Observaciones creadas después de esta fecha (formato: YYYY-MM-DD) |
+| `fecha_hasta`     | date   | No        | -       | Observaciones creadas antes de esta fecha (formato: YYYY-MM-DD)   |
+
+#### Query Parameters (Ordenamiento)
+
+| Parámetro   | Tipo   | Requerido | Default      | Descripción                                                                      |
+| ----------- | ------ | --------- | ------------ | -------------------------------------------------------------------------------- |
+| `sort_by`   | string | No        | created_at   | Campo por ordenar (created_at, fecha_limite, fecha_resolucion, updated_at)       |
+| `sort_order` | string | No        | desc         | Orden (asc para ascendente, desc para descendente)                               |
+
+#### Response Exitoso (200)
+
+```json
+{
+  "items": [
+    {
+      "id": "623e4567-e89b-12d3-a456-426614174555",
+      "proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+      "council_user_id": "550e8400-e29b-41d4-a716-446655440003",
+      "descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte.",
+      "estado": "pendiente",
+      "fecha_limite": "2025-01-25",
+      "respuesta": null,
+      "fecha_resolucion": null,
+      "created_at": "2025-01-20T10:00:00+00:00",
+      "updated_at": "2025-01-20T10:00:00+00:00",
+      "proyecto": {
+        "id": "123e4567-e89b-12d3-a456-426614174000",
+        "titulo": "Sistema de Riego Comunitario",
+        "estado": "en_ejecucion"
+      },
+      "council_user": {
+        "id": "550e8400-e29b-41d4-a716-446655440003",
+        "email": "consejero@ejemplo.com",
+        "ong": "ONG de Desarrollo",
+        "nombre": "Juan García"
+      },
+      "executor_user": {
+        "id": "660e8400-e29b-41d4-a716-446655440004",
+        "email": "ejecutor@ong.org",
+        "ong": "Fundación Esperanza",
+        "nombre": "María López"
+      }
+    }
+  ],
+  "total": 145,
+  "page": 1,
+  "page_size": 20,
+  "pages": 8
+}
+```
+
+#### Ejemplos de Uso
+
+**1. Obtener todas las observaciones del usuario (con paginación)**
+
+```
+GET /api/v1/observaciones?page=1&page_size=20
+```
+
+**2. Observaciones pendientes ordenadas por urgencia (más urgentes primero)**
+
+```
+GET /api/v1/observaciones?estado=pendiente&sort_by=fecha_limite&sort_order=asc&page=1&page_size=20
+```
+
+**3. Observaciones de un proyecto específico**
+
+```
+GET /api/v1/observaciones?proyecto_id=123e4567-e89b-12d3-a456-426614174000&page=1
+```
+
+**4. Buscar observaciones sobre presupuesto**
+
+```
+GET /api/v1/observaciones?search=presupuesto&page=1&page_size=20
+```
+
+**5. Observaciones vencidas ordenadas por antigüedad**
+
+```
+GET /api/v1/observaciones?estado=vencida&sort_by=fecha_limite&sort_order=asc
+```
+
+**6. Observaciones creadas en enero 2025**
+
+```
+GET /api/v1/observaciones?fecha_desde=2025-01-01&fecha_hasta=2025-01-31&page=1
+```
+
+**7. Observaciones creadas por un consejero específico**
+
+```
+GET /api/v1/observaciones?council_user_id=550e8400-e29b-41d4-a716-446655440003&page=1
+```
+
+#### Errores Posibles
+
+| Código | Descripción                  | Ejemplo de Error                                                              | Solución                                                    |
+| ------ | ---------------------------- | ----------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| `401`  | Token inválido o faltante    | `{"detail": "Invalid or expired token"}`                                    | Proporciona un access_token válido                          |
+| `400`  | Parámetro de filtro inválido | `{"detail": "Invalid estado filter. Must be one of: ['pendiente', 'resuelta', 'vencida']"}` | Usa valores válidos para los parámetros de filtro           |
+| `422`  | Validación de parámetros     | `{"detail": [{"loc": ["query", "page"], "msg": "ensure this value is >= 1"}]}` | Verifica que los parámetros sean válidos (page >= 1, etc)   |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "GET /api/v1/observaciones"
+3. Click "Try it out"
+4. Ajusta los parámetros según necesites:
+   - Para ver observaciones pendientes: estado = "pendiente"
+   - Para ordenar por urgencia: sort_by = "fecha_limite", sort_order = "asc"
+   - Para buscar: search = "presupuesto"
+5. Click "Execute"
+
+**Opción 2: cURL**
+
+```bash
+# Todas las observaciones (página 1)
+TOKEN="tu_access_token_aqui"
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/observaciones?page=1&page_size=20" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Observaciones pendientes ordenadas por urgencia
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/observaciones?estado=pendiente&sort_by=fecha_limite&sort_order=asc&page=1" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Buscar observaciones sobre presupuesto
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/observaciones?search=presupuesto&page=1&page_size=20" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Observaciones de un proyecto específico
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/observaciones?proyecto_id=$PROJECT_ID&page=1" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Observaciones vencidas
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/observaciones?estado=vencida&sort_by=fecha_limite&sort_order=asc" \
+  -H "Authorization: Bearer $TOKEN"
+
+# Observaciones del último mes
+curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/observaciones?fecha_desde=2025-01-01&fecha_hasta=2025-01-31&page=1" \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+---
+
+### 4️⃣ Resolver Observación
 
 Permite al ejecutor del proyecto (dueño) resolver una observación proporcionando una respuesta. Se puede resolver incluso si está vencida.
 

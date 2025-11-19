@@ -1,6 +1,7 @@
 """Observacion endpoints."""
 
 import logging
+from datetime import date
 from typing import List, Optional
 from uuid import UUID
 
@@ -13,6 +14,8 @@ from app.models.user import User, UserRole
 from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
 from app.schemas.observacion import (
     ObservacionCreate,
+    ObservacionDetailedResponse,
+    ObservacionListResponse,
     ObservacionResolve,
     ObservacionResponse,
     ObservacionWithUserResponse,
@@ -21,6 +24,170 @@ from app.services.observacion_service import ObservacionService
 
 logger = logging.getLogger(__name__)
 router = APIRouter(dependencies=[Depends(get_current_user)])
+
+
+@router.get(
+    "/observaciones",
+    response_model=ObservacionListResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Invalid filter parameters",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Invalid estado filter. Must be one of: ['pendiente', 'resuelta', 'vencida']"
+                    }
+                }
+            },
+        },
+    },
+)
+async def list_all_observaciones(
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+    # Pagination
+    page: int = Query(1, ge=1, description="Page number (1-indexed)"),
+    page_size: int = Query(20, ge=1, le=100, description="Results per page (max 100)"),
+    # Filtering
+    estado: Optional[str] = Query(
+        None,
+        description="Filter by estado (pendiente, resuelta, vencida)",
+    ),
+    proyecto_id: Optional[UUID] = Query(None, description="Filter by specific project"),
+    council_user_id: Optional[UUID] = Query(None, description="Filter by council member who created"),
+    # Searching
+    search: Optional[str] = Query(
+        None,
+        min_length=3,
+        description="Search in descripcion and respuesta fields (minimum 3 characters)",
+    ),
+    # Sorting
+    sort_by: str = Query(
+        "created_at",
+        description="Field to sort by (created_at, fecha_limite, fecha_resolucion, updated_at)",
+    ),
+    sort_order: str = Query(
+        "desc",
+        description="Sort order (asc, desc)",
+    ),
+    # Date range
+    fecha_desde: Optional[date] = Query(None, description="Filter observations created after this date"),
+    fecha_hasta: Optional[date] = Query(None, description="Filter observations created before this date"),
+) -> ObservacionListResponse:
+    """
+    Obtener todas las observaciones con filtrado avanzado, búsqueda, ordenamiento y paginación.
+
+    **Autorización:**
+    - COUNCIL users: Ven todas las observaciones que crearon
+    - MEMBER users: Ven solo observaciones para sus propios proyectos (como ejecutor)
+
+    **Parámetros de paginación:**
+    - `page`: Número de página (por defecto 1)
+    - `page_size`: Resultados por página (por defecto 20, máximo 100)
+
+    **Parámetros de filtrado:**
+    - `estado`: Filtrar por estado (pendiente, resuelta, vencida)
+    - `proyecto_id`: Filtrar por proyecto específico
+    - `council_user_id`: Filtrar por consejero que creó la observación
+    - `fecha_desde`: Observaciones creadas después de esta fecha
+    - `fecha_hasta`: Observaciones creadas antes de esta fecha
+
+    **Búsqueda:**
+    - `search`: Buscar en descripción y respuesta (mínimo 3 caracteres)
+
+    **Ordenamiento:**
+    - `sort_by`: Campo por el cual ordenar (created_at, fecha_limite, fecha_resolucion, updated_at)
+    - `sort_order`: Orden de clasificación (asc, desc)
+
+    **Ejemplos de uso:**
+    - `GET /api/v1/observaciones` - Todas las observaciones del usuario
+    - `GET /api/v1/observaciones?estado=pendiente&sort_by=fecha_limite&sort_order=asc` - Observaciones pendientes ordenadas por urgencia
+    - `GET /api/v1/observaciones?proyecto_id=123...` - Observaciones de un proyecto específico
+    - `GET /api/v1/observaciones?search=presupuesto&page=1&page_size=20` - Buscar observaciones sobre presupuesto
+    - `GET /api/v1/observaciones?estado=vencida&sort_by=fecha_limite` - Observaciones vencidas
+    - `GET /api/v1/observaciones?fecha_desde=2025-01-01&fecha_hasta=2025-01-31` - Observaciones del mes
+    """
+    logger.info(
+        f"User {current_user.id} fetching observaciones with filters: "
+        f"estado={estado}, proyecto_id={proyecto_id}, search={search}, "
+        f"page={page}, page_size={page_size}"
+    )
+
+    # Get observaciones with service
+    observaciones, total_count = await ObservacionService.get_all_observaciones(
+        db=db,
+        current_user=current_user,
+        estado_filter=estado,
+        proyecto_id=proyecto_id,
+        council_user_id=council_user_id,
+        search=search,
+        sort_by=sort_by,
+        sort_order=sort_order,
+        fecha_desde=fecha_desde,
+        fecha_hasta=fecha_hasta,
+        page=page,
+        page_size=page_size,
+    )
+
+    # Build detailed response with nested objects
+    response_items = []
+    for obs in observaciones:
+        # Get executor (project owner) info if available
+        executor_user = None
+        if obs.proyecto and obs.proyecto.user_id:
+            from app.models.user import User as UserModel
+            executor = await db.get(UserModel, obs.proyecto.user_id)
+            if executor:
+                executor_user = {
+                    "id": executor.id,
+                    "email": executor.email,
+                    "ong": executor.ong,
+                    "nombre": executor.nombre,
+                }
+
+        # Build response item
+        obs_item = {
+            "id": obs.id,
+            "proyecto_id": obs.proyecto_id,
+            "council_user_id": obs.council_user_id,
+            "descripcion": obs.descripcion,
+            "estado": obs.estado.value,
+            "fecha_limite": obs.fecha_limite,
+            "respuesta": obs.respuesta,
+            "fecha_resolucion": obs.fecha_resolucion,
+            "created_at": obs.created_at,
+            "updated_at": obs.updated_at,
+            "proyecto": {
+                "id": obs.proyecto.id,
+                "titulo": obs.proyecto.titulo,
+                "estado": obs.proyecto.estado,
+            },
+            "council_user": {
+                "id": obs.council_user.id,
+                "email": obs.council_user.email,
+                "ong": obs.council_user.ong,
+                "nombre": obs.council_user.nombre,
+            },
+            "executor_user": executor_user,
+        }
+        response_items.append(ObservacionDetailedResponse(**obs_item))
+
+    # Calculate pagination info
+    total_pages = (total_count + page_size - 1) // page_size if total_count > 0 else 1
+
+    logger.info(
+        f"Returning {len(response_items)} observaciones (page {page}/{total_pages}, total: {total_count})"
+    )
+
+    return ObservacionListResponse(
+        items=response_items,
+        total=total_count,
+        page=page,
+        page_size=page_size,
+        pages=total_pages,
+    )
 
 
 @router.post(
