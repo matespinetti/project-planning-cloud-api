@@ -1163,7 +1163,7 @@ Obtiene todas las etapas de un proyecto con información detallada de pedidos, c
 
 | Parámetro | Tipo  | Descripción                                                                       |
 | --------- | ----- | --------------------------------------------------------------------------------- |
-| `estado`  | enum  | Filtra por estado específico: `pendiente`, `financiada`, `en_ejecucion`, `completada`. |
+| `estado`  | enum  | Filtra por estado específico: `pendiente`, `financiada`, `esperando_ejecucion`, `en_ejecucion`, `completada`. |
 
 #### ¿Qué incluye la respuesta?
 
@@ -1248,13 +1248,13 @@ curl -X GET https://project-planning-cloud-api.onrender.com/api/v1/projects/$PRO
 
 ### 2️⃣ Iniciar Etapa
 
-Cambia una etapa del estado `financiada` (o `pendiente` sin pedidos abiertos) a `en_ejecucion`. Valida automáticamente que el proyecto esté en ejecución y que no existan pedidos pendientes.
+Cambia una etapa desde `financiada`, `pendiente` (sin pedidos abiertos) o `esperando_ejecucion` a `en_ejecucion`. Valida automáticamente que el proyecto esté en ejecución y que no existan pedidos pendientes.
 
 **Método:** `POST`
 **Ruta:** `/api/v1/etapas/{etapa_id}/start`
-**Autenticación:** Requerida (Bearer Token)
+**Autenticación:** Requerida (Bearer Token o X-API-Key para Bonita)
 **Código de Respuesta:** `200 OK`
-**Restricción:** Solo el propietario del proyecto puede iniciar etapas
+**Restricción:** Solo el propietario del proyecto o Bonita (via X-API-Key) pueden iniciar etapas
 
 #### Path Parameters
 
@@ -1293,7 +1293,7 @@ Cambia una etapa del estado `financiada` (o `pendiente` sin pedidos abiertos) a 
 3. Click "Try it out" y pega el `etapa_id`.
 4. Ejecuta y verifica el nuevo estado.
 
-**Opción 2: cURL**
+**Opción 2: cURL (con JWT)**
 
 ```bash
 TOKEN="tu_access_token_del_propietario"
@@ -1301,6 +1301,16 @@ ETAPA_ID="223e4567-e89b-12d3-a456-426614174111"
 
 curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/etapas/$ETAPA_ID/start \
   -H "Authorization: Bearer $TOKEN"
+```
+
+**Opción 3: cURL (Bonita con X-API-Key)**
+
+```bash
+BONITA_API_KEY="tu_bonita_api_key_aqui"
+ETAPA_ID="223e4567-e89b-12d3-a456-426614174111"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/etapas/$ETAPA_ID/start \
+  -H "X-API-Key: $BONITA_API_KEY"
 ```
 
 ---
