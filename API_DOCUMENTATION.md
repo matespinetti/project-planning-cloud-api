@@ -924,6 +924,148 @@ curl -X PATCH https://project-planning-cloud-api.onrender.com/api/v1/projects/$P
 
 ---
 
+### 4️⃣.1️⃣ Reemplazar Proyecto (Completo)
+
+Reemplaza completamente un proyecto usando PUT. Este endpoint es útil para Bonita, que **no soporta PATCH** pero solo GET, POST y PUT.
+
+**Método:** `PUT`
+**Ruta:** `/api/v1/projects/{project_id}`
+**Autenticación:** Requerida (Bearer Token o X-API-Key para Bonita)
+**Código de Respuesta:** `200 OK`
+**Restricción:** Solo el propietario del proyecto O Bonita (via X-API-Key) puede reemplazarlo
+
+#### Path Parameters
+
+| Parámetro    | Tipo | Descripción                    |
+| ------------ | ---- | ------------------------------ |
+| `project_id` | UUID | ID del proyecto a reemplazar   |
+
+#### Campos Obligatorios
+
+| Campo       | Tipo   | Descripción                  |
+| ----------- | ------ | ---------------------------- |
+| `titulo`    | string | Título del proyecto          |
+| `descripcion` | string | Descripción del proyecto     |
+| `tipo`      | string | Tipo de proyecto             |
+| `pais`      | string | País                         |
+| `provincia` | string | Provincia/Estado             |
+| `ciudad`    | string | Ciudad                       |
+
+#### Campos Opcionales
+
+| Campo                        | Tipo    | Descripción            |
+| ---------------------------- | ------- | ---------------------- |
+| `barrio`                     | string  | Barrio/Localidad       |
+| `estado`                     | enum    | Estado del proyecto    |
+| `bonita_case_id`             | string  | ID de caso Bonita      |
+| `bonita_process_instance_id` | integer | ID de instancia Bonita |
+
+#### Body de Prueba
+
+```json
+{
+	"titulo": "Centro Comunitario La Plata",
+	"descripcion": "Construcción de un nuevo centro comunitario con servicios sociales",
+	"tipo": "Infraestructura Social",
+	"pais": "Argentina",
+	"provincia": "Buenos Aires",
+	"ciudad": "La Plata",
+	"barrio": "Centro",
+	"estado": "en_ejecucion",
+	"bonita_case_id": "CASE-2024-001",
+	"bonita_process_instance_id": 12345
+}
+```
+
+#### Response Exitoso (200)
+
+Retorna el proyecto reemplazado completamente con todos sus datos:
+
+```json
+{
+	"id": "123e4567-e89b-12d3-a456-426614174000",
+	"user_id": "550e8400-e29b-41d4-a716-446655440000",
+	"titulo": "Centro Comunitario La Plata",
+	"descripcion": "Construcción de un nuevo centro comunitario con servicios sociales",
+	"tipo": "Infraestructura Social",
+	"pais": "Argentina",
+	"provincia": "Buenos Aires",
+	"ciudad": "La Plata",
+	"barrio": "Centro",
+	"estado": "en_ejecucion",
+	"bonita_case_id": "CASE-2024-001",
+	"bonita_process_instance_id": 12345,
+	"created_at": "2024-10-22T14:30:00+00:00",
+	"updated_at": "2024-10-22T14:30:00+00:00",
+	"etapas": [...]
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción               | Ejemplo de Error                                                                                                           | Solución                                      |
+| ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                   | Proporciona un access_token válido            |
+| `403`  | No eres el propietario    | `{"detail": "Only the project owner can replace this project"}`                                                             | Solo el dueño del proyecto puede reemplazarlo |
+| `404`  | Proyecto no existe        | `{"detail": "Proyecto with id 123e4567-e89b-12d3-a456-426614174000 not found"}`                                            | Verifica que el project_id sea correcto       |
+| `422`  | Validación fallida        | `{"detail": [{"loc": ["body", "titulo"], "msg": "ensure this value has at least 5 characters", "type": "value_error..."}]}` | Revisa que todos los campos obligatorios estén presentes |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "PUT /api/v1/projects/{project_id}"
+3. Click "Try it out"
+4. Pega el UUID en "project_id"
+5. Completa el JSON con todos los campos obligatorios
+6. Click "Execute"
+
+**Opción 2: cURL (Usuario Propietario)**
+
+```bash
+TOKEN="tu_access_token_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X PUT https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "titulo": "Centro Comunitario La Plata",
+    "descripcion": "Construcción de un nuevo centro comunitario con servicios sociales",
+    "tipo": "Infraestructura Social",
+    "pais": "Argentina",
+    "provincia": "Buenos Aires",
+    "ciudad": "La Plata",
+    "estado": "en_ejecucion",
+    "bonita_case_id": "CASE-2024-001"
+  }'
+```
+
+**Opción 3: cURL (Bonita Sistema via X-API-Key)**
+
+```bash
+API_KEY="tu_bonita_api_key_aqui"
+PROJECT_ID="123e4567-e89b-12d3-a456-426614174000"
+
+curl -X PUT https://project-planning-cloud-api.onrender.com/api/v1/projects/$PROJECT_ID \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "titulo": "Centro Comunitario La Plata",
+    "descripcion": "Construcción de un nuevo centro comunitario con servicios sociales",
+    "tipo": "Infraestructura Social",
+    "pais": "Argentina",
+    "provincia": "Buenos Aires",
+    "ciudad": "La Plata",
+    "estado": "en_ejecucion",
+    "bonita_case_id": "CASE-2024-001",
+    "bonita_process_instance_id": 12345
+  }'
+```
+
+---
+
 ### 5️⃣ Eliminar Proyecto
 
 Elimina un proyecto y **toda su estructura anidada** (etapas, pedidos, ofertas).
