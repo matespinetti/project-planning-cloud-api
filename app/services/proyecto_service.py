@@ -14,7 +14,7 @@ from app.models.etapa import Etapa, EstadoEtapa
 from app.models.pedido import Pedido
 from app.models.proyecto import EstadoProyecto, Proyecto
 from app.models.user import User
-from app.schemas.proyecto import PedidoPendienteInfo, ProyectoCreate, ProyectoUpdate
+from app.schemas.proyecto import PedidoPendienteInfo, ProyectoCreate, ProyectoPut, ProyectoUpdate
 from app.services.state_machine import (
     etapa_all_pedidos_financed,
     etapa_pedidos_pendientes,
@@ -117,6 +117,53 @@ class ProyectoService:
 
         await db.commit()
         await db.refresh(db_proyecto)
+
+        return db_proyecto
+
+    @staticmethod
+    async def replace(
+        db: AsyncSession, proyecto_id: UUID, replace_data: ProyectoPut, user: User
+    ) -> Optional[Proyecto]:
+        """
+        Complete replacement of a proyecto (PUT).
+        Only the project owner can replace the project.
+        Bonita can also replace using X-API-Key bypass.
+        """
+        db_proyecto = await ProyectoService.get_by_id(db, proyecto_id)
+        if not db_proyecto:
+            return None
+
+        # Check ownership (skip for Bonita system actor)
+        if not getattr(user, "is_bonita_actor", False):
+            if db_proyecto.user_id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only the project owner can replace this project",
+                )
+        else:
+            logger.info(
+                f"Skipping ownership verification for project {db_proyecto.id} because request comes from Bonita"
+            )
+
+        # Update all provided fields
+        db_proyecto.titulo = replace_data.titulo
+        db_proyecto.descripcion = replace_data.descripcion
+        db_proyecto.tipo = replace_data.tipo
+        db_proyecto.pais = replace_data.pais
+        db_proyecto.provincia = replace_data.provincia
+        db_proyecto.ciudad = replace_data.ciudad
+        db_proyecto.barrio = replace_data.barrio
+        if replace_data.estado:
+            db_proyecto.estado = replace_data.estado
+        if replace_data.bonita_case_id:
+            db_proyecto.bonita_case_id = replace_data.bonita_case_id
+        if replace_data.bonita_process_instance_id:
+            db_proyecto.bonita_process_instance_id = replace_data.bonita_process_instance_id
+
+        await db.commit()
+        await db.refresh(db_proyecto)
+
+        logger.info(f"Proyecto {proyecto_id} replaced by user {user.id}")
 
         return db_proyecto
 

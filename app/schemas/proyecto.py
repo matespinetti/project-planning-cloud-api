@@ -53,6 +53,21 @@ class ProyectoUpdate(BaseModel):
     bonita_process_instance_id: Optional[int] = None
 
 
+class ProyectoPut(BaseModel):
+    """Schema for complete update (PUT) - all core fields required."""
+
+    titulo: str = Field(..., min_length=5, max_length=200)
+    descripcion: str = Field(..., min_length=20)
+    tipo: str = Field(..., min_length=1, max_length=100)
+    pais: str = Field(..., max_length=100)
+    provincia: str = Field(..., max_length=100)
+    ciudad: str = Field(..., max_length=100)
+    barrio: Optional[str] = Field(None, max_length=100)
+    estado: Optional[str] = None
+    bonita_case_id: Optional[str] = Field(None, max_length=100)
+    bonita_process_instance_id: Optional[int] = None
+
+
 class ProyectoResponse(BaseModel):
     """Schema for proyecto response with all nested data."""
 

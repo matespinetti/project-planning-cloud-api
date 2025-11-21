@@ -17,6 +17,7 @@ from app.schemas.proyecto import (
     ProyectoCompleteResponse,
     ProyectoCreate,
     ProyectoListItem,
+    ProyectoPut,
     ProyectoResponse,
     ProyectoStartResponse,
     ProyectoUpdate,
@@ -185,6 +186,73 @@ async def update_project(
         )
 
     logger.info(f"Successfully updated proyecto {project_id}")
+    return ProyectoResponse.model_validate(db_proyecto)
+
+
+@router.put(
+    "/projects/{project_id}",
+    response_model=ProyectoResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: OWNERSHIP_RESPONSES[403],
+        404: OWNERSHIP_RESPONSES[404],
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid replacement data",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["body", "titulo"],
+                                "msg": "ensure this value has at least 5 characters",
+                                "type": "value_error.any_str.min_length",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
+)
+async def replace_project(
+    project_id: UUID,
+    replace_data: ProyectoPut,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ProyectoResponse:
+    """
+    Reemplazo completo de un proyecto (PUT).
+
+    **Requisitos:**
+    - Solo el dueño del proyecto puede reemplazarlo (o Bonita via X-API-Key)
+    - Todos los campos principales son obligatorios
+
+    **Campos obligatorios:**
+    - titulo: str
+    - descripcion: str
+    - tipo: str
+    - pais: str
+    - provincia: str
+    - ciudad: str
+
+    **Campos opcionales:**
+    - barrio: str
+    - estado: str
+    - bonita_case_id: str
+    - bonita_process_instance_id: int
+    """
+    logger.info(f"User {current_user.id} replacing proyecto {project_id}")
+    db_proyecto = await ProyectoService.replace(db, project_id, replace_data, current_user)
+
+    if not db_proyecto:
+        logger.warning(f"Proyecto {project_id} not found")
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Proyecto with id {project_id} not found",
+        )
+
+    logger.info(f"Successfully replaced proyecto {project_id}")
     return ProyectoResponse.model_validate(db_proyecto)
 
 
