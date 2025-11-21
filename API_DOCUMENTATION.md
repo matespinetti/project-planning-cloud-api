@@ -539,6 +539,10 @@ Crea un nuevo proyecto con etapas y pedidos anidados en una sola transacción.
 			"descripcion": "Preparación del terreno y construcción de cimientos",
 			"fecha_inicio": "2024-11-01",
 			"fecha_fin": "2024-12-31",
+			"estado": "pendiente",
+			"fecha_completitud": null,
+			"bonita_case_id": null,
+			"bonita_process_instance_id": null,
 			"pedidos": [
 				{
 					"id": "323e4567-e89b-12d3-a456-426614174222",
@@ -571,6 +575,10 @@ Crea un nuevo proyecto con etapas y pedidos anidados en una sola transacción.
 			"descripcion": "Construcción de estructura principal del edificio",
 			"fecha_inicio": "2025-01-01",
 			"fecha_fin": "2025-03-31",
+			"estado": "pendiente",
+			"fecha_completitud": null,
+			"bonita_case_id": null,
+			"bonita_process_instance_id": null,
 			"pedidos": [
 				{
 					"id": "323e4567-e89b-12d3-a456-426614174224",
@@ -797,7 +805,11 @@ GET /api/v1/projects/123e4567-e89b-12d3-a456-426614174000
 
 #### Response Exitoso (200)
 
-Retorna la estructura completa del proyecto igual que en el `POST` (ver ejemplo anterior).
+Retorna la estructura completa del proyecto igual que en el `POST` (ver ejemplo anterior), incluyendo:
+- El campo `estado` de cada etapa (`pendiente`, `financiada`, `esperando_ejecucion`, `en_ejecucion`, `completada`)
+- El timestamp de completitud de cada etapa (`fecha_completitud`)
+- Los IDs de integración con Bonita (`bonita_case_id`, `bonita_process_instance_id`)
+- Todos los pedidos con su estado actual
 
 #### Errores Posibles
 

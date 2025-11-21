@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import List, Optional
 from uuid import UUID
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator
 
 from app.schemas.pedido import PedidoCreate, PedidoResponse
 
@@ -116,6 +116,13 @@ class EtapaResponse(BaseModel):
     bonita_process_instance_id: Optional[int] = None
     pedidos: List[PedidoResponse] = []
 
+    @field_serializer("estado")
+    def serialize_estado(self, value) -> str:
+        """Serialize estado enum to its string value."""
+        if hasattr(value, "value"):
+            return value.value
+        return str(value)
+
 
 class EtapaListItem(BaseModel):
     """Schema for etapa list item with pedido counts."""
@@ -135,6 +142,13 @@ class EtapaListItem(BaseModel):
     pedidos: List[PedidoResponse] = []
     pedidos_pendientes_count: int = 0
     pedidos_total_count: int = 0
+
+    @field_serializer("estado")
+    def serialize_estado(self, value) -> str:
+        """Serialize estado enum to its string value."""
+        if hasattr(value, "value"):
+            return value.value
+        return str(value)
 
 
 class EtapasListResponse(BaseModel):
