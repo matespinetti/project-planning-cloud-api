@@ -81,6 +81,38 @@ class OfertaWithPedidoResponse(BaseModel):
     pedido_unidad: Optional[str] = None
 
 
+class PedidoContextInfo(BaseModel):
+    """Minimal pedido context returned alongside an oferta."""
+
+    id: UUID = Field(..., description="ID of the pedido")
+    etapa_id: UUID = Field(..., description="ID of the etapa that contains the pedido")
+    proyecto_id: UUID = Field(..., description="ID of the proyecto tied to the pedido")
+
+
+class ProyectoContextInfo(BaseModel):
+    """Minimal proyecto tracking information returned alongside an oferta."""
+
+    id: UUID = Field(..., description="ID of the proyecto")
+    bonita_case_id: Optional[str] = Field(
+        None, description="Bonita BPM case identifier associated to the proyecto"
+    )
+    titulo: Optional[str] = Field(None, description="Title of the proyecto")
+    estado: Optional[str] = Field(None, description="Current estado of the proyecto")
+
+
+class OfertaContextResponse(OfertaResponse):
+    """Detailed oferta response with pedido and proyecto context."""
+
+    model_config = {"from_attributes": True}
+
+    pedido: PedidoContextInfo = Field(
+        ..., description="Identifiers for the pedido, its etapa and proyecto"
+    )
+    proyecto: ProyectoContextInfo = Field(
+        ..., description="Project tracking data related to the oferta"
+    )
+
+
 class EtapaBasicInfo(BaseModel):
     """Basic etapa information nested in oferta response."""
 
@@ -96,6 +128,27 @@ class ProyectoBasicInfo(BaseModel):
     titulo: str = Field(..., description="Title of the proyecto")
 
 
+class ProyectoDetailedInfo(BaseModel):
+    """Detailed proyecto information nested in etapa response."""
+
+    id: UUID = Field(..., description="ID of the proyecto")
+    titulo: str = Field(..., description="Title of the proyecto")
+    tipo: str = Field(..., description="Type of proyecto")
+    ciudad: str = Field(..., description="City where the proyecto is located")
+    provincia: str = Field(..., description="Province/State where the proyecto is located")
+    estado: str = Field(..., description="Current state of the proyecto")
+
+
+class EtapaDetailedInfo(BaseModel):
+    """Etapa information nested in pedido response with proyecto details."""
+
+    id: UUID = Field(..., description="ID of the etapa")
+    nombre: str = Field(..., description="Name of the etapa")
+    estado: str = Field(..., description="Current state of the etapa")
+    # Nested proyecto information
+    proyecto: Optional[ProyectoDetailedInfo] = Field(None, description="Detailed proyecto information")
+
+
 class PedidoDetailedInfo(BaseModel):
     """Detailed pedido information nested in oferta response."""
 
@@ -108,7 +161,7 @@ class PedidoDetailedInfo(BaseModel):
     cantidad: Optional[int] = Field(None, description="Quantity")
     unidad: Optional[str] = Field(None, description="Unit of measurement")
     # Nested relationships
-    etapa: Optional[EtapaBasicInfo] = Field(None, description="Etapa information")
+    etapa: Optional[EtapaDetailedInfo] = Field(None, description="Etapa information with proyecto details")
 
 
 class OfertaDetailedResponse(BaseModel):

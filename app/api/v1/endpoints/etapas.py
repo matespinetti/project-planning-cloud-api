@@ -15,12 +15,46 @@ from app.schemas.etapa import (
     EtapaCompleteResponse,
     EtapaListItem,
     EtapasListResponse,
+    EtapaResponse,
     EtapaStartResponse,
+    EtapaUpdate,
+    EtapaPut,
 )
 from app.services.etapa_service import EtapaService
 from app.services.state_machine import etapa_pedidos_pendientes
 
 router = APIRouter()
+
+
+@router.get(
+    "/etapas/{etapa_id}",
+    response_model=EtapaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Get a specific etapa",
+    description="Retrieve details of a specific etapa by ID",
+)
+async def get_etapa(
+    etapa_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> EtapaResponse:
+    """
+    Get a specific etapa by ID.
+
+    - **etapa_id**: UUID of the etapa to retrieve
+    - Returns etapa data with all nested pedidos
+    """
+    db_etapa = await EtapaService.get_by_id(db, etapa_id)
+
+    if not db_etapa:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Etapa with id {etapa_id} not found",
+        )
+
+    return EtapaResponse.model_validate(db_etapa)
 
 
 @router.get(
@@ -120,3 +154,93 @@ async def complete_etapa(
     """
     result = await EtapaService.complete_etapa(db, etapa_id, current_user)
     return EtapaCompleteResponse(**result)
+
+
+@router.patch(
+    "/etapas/{etapa_id}",
+    response_model=EtapaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Update an etapa",
+    description="Partial update of an etapa (mainly for Bonita integration info)",
+)
+async def update_etapa(
+    etapa_id: UUID,
+    update_data: EtapaUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> EtapaResponse:
+    """
+    Update an etapa partially (PATCH).
+
+    **Requirements:**
+    - Only project owner can update etapas (or Bonita system via API key)
+    - All fields are optional
+
+    **Supported fields:**
+    - nombre: str
+    - descripcion: str
+    - fecha_inicio: ISO date string (YYYY-MM-DD)
+    - fecha_fin: ISO date string (YYYY-MM-DD)
+    - bonita_case_id: str (Bonita integration)
+    - bonita_process_instance_id: int (Bonita integration)
+
+    - **etapa_id**: UUID of the etapa to update
+    - Returns updated etapa data
+    """
+    db_etapa = await EtapaService.update(db, etapa_id, update_data, current_user)
+
+    if not db_etapa:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Etapa with id {etapa_id} not found",
+        )
+
+    return EtapaResponse.model_validate(db_etapa)
+
+
+@router.put(
+    "/etapas/{etapa_id}",
+    response_model=EtapaResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Replace an etapa",
+    description="Complete replacement of an etapa (mainly for Bonita integration)",
+)
+async def replace_etapa(
+    etapa_id: UUID,
+    replace_data: EtapaPut,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> EtapaResponse:
+    """
+    Replace an etapa completely (PUT).
+
+    **Requirements:**
+    - Only project owner can replace etapas (or Bonita system via API key)
+    - All core fields are required
+
+    **Required fields:**
+    - nombre: str
+    - descripcion: str
+    - fecha_inicio: ISO date string (YYYY-MM-DD)
+    - fecha_fin: ISO date string (YYYY-MM-DD)
+
+    **Optional fields:**
+    - bonita_case_id: str (Bonita integration)
+    - bonita_process_instance_id: int (Bonita integration)
+
+    - **etapa_id**: UUID of the etapa to replace
+    - Returns updated etapa data
+    """
+    db_etapa = await EtapaService.replace(db, etapa_id, replace_data, current_user)
+
+    if not db_etapa:
+        from fastapi import HTTPException
+
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Etapa with id {etapa_id} not found",
+        )
+
+    return EtapaResponse.model_validate(db_etapa)

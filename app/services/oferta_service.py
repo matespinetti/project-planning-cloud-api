@@ -361,12 +361,14 @@ class OfertaService:
         Optionally filter by oferta estado (pendiente, aceptada, rechazada).
         """
         # Build query for all ofertas belonging to the user
-        # Eager load pedido AND pedido's etapa to avoid lazy loading issues in async context
+        # Eager load pedido → etapa → proyecto to avoid lazy loading issues in async context
         stmt = (
             select(Oferta)
             .where(Oferta.user_id == user.id)
             .options(
-                joinedload(Oferta.pedido).joinedload(Pedido.etapa),
+                joinedload(Oferta.pedido)
+                    .joinedload(Pedido.etapa)
+                    .joinedload(Etapa.proyecto),
                 joinedload(Oferta.user)
             )
             .order_by(Oferta.updated_at.desc())
@@ -395,7 +397,12 @@ class OfertaService:
         stmt = (
             select(Oferta)
             .where(Oferta.id == oferta_id)
-            .options(joinedload(Oferta.user), joinedload(Oferta.pedido))
+            .options(
+                joinedload(Oferta.user),
+                joinedload(Oferta.pedido)
+                .joinedload(Pedido.etapa)
+                .joinedload(Etapa.proyecto),
+            )
         )
         result = await db.execute(stmt)
         return result.unique().scalar_one_or_none()
@@ -486,6 +493,15 @@ class OfertaService:
     @staticmethod
     async def _verify_project_ownership(db: AsyncSession, oferta: Oferta, user: User) -> None:
         """Verify that the user owns the project that contains this oferta."""
+        # Bonita system calls are pre-authorized through the proxy API, so skip
+        # project ownership validation when requests carry the X-API-Key header.
+        if getattr(user, "is_bonita_actor", False):
+            logger.info(
+                "Skipping ownership verification for oferta %s because request comes from Bonita",
+                oferta.id,
+            )
+            return
+
         # Get pedido -> etapa -> proyecto chain
         pedido = await db.get(Pedido, oferta.pedido_id)
         if not pedido:

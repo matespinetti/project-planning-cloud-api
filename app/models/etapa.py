@@ -17,10 +17,11 @@ if TYPE_CHECKING:
 
 
 class EstadoEtapa(StrEnum):
-    """Etapa lifecycle: pending funding → financed → executing → completed."""
+    """Etapa lifecycle: pending funding → financed → awaiting execution → executing → completed."""
 
     pendiente = "pendiente"
     financiada = "financiada"
+    esperando_ejecucion = "esperando_ejecucion"
     en_ejecucion = "en_ejecucion"
     completada = "completada"
 
@@ -55,6 +56,10 @@ class Etapa(Base):
     fecha_completitud: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+
+    # Bonita Integration
+    bonita_case_id: Mapped[Optional[str]] = mapped_column(String(100), nullable=True)
+    bonita_process_instance_id: Mapped[Optional[int]] = mapped_column(nullable=True)
 
     # Relationships
     proyecto: Mapped["Proyecto"] = relationship(back_populates="etapas")

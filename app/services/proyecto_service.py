@@ -175,8 +175,13 @@ class ProyectoService:
                 detail=f"Proyecto with id {proyecto_id} not found",
             )
 
-        # Verify ownership
-        ProyectoService.verify_ownership(db_proyecto, user)
+        # Verify ownership (skip for Bonita system actor)
+        if not getattr(user, "is_bonita_actor", False):
+            ProyectoService.verify_ownership(db_proyecto, user)
+        else:
+            logger.info(
+                f"Skipping ownership verification for project {proyecto_id} because request comes from Bonita"
+            )
 
         # Check current state
         if db_proyecto.estado != EstadoProyecto.pendiente.value:
@@ -216,9 +221,10 @@ class ProyectoService:
 
         # All etapas financed, advance project and etapas
         db_proyecto.estado = EstadoProyecto.en_ejecucion.value
+        # Transition etapas to esperando_ejecucion (awaiting manual start)
         for etapa in db_proyecto.etapas:
             if etapa.estado != EstadoEtapa.completada:
-                etapa.estado = EstadoEtapa.en_ejecucion
+                etapa.estado = EstadoEtapa.esperando_ejecucion
                 etapa.fecha_completitud = None
 
         await db.commit()

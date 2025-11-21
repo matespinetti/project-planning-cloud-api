@@ -118,7 +118,7 @@ Main project table with metadata and Bonita tracking.
 ---
 
 #### **etapas**
-Project stages/phases with date ranges.
+Project stages/phases with date ranges and Bonita tracking.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -128,6 +128,10 @@ Project stages/phases with date ranges.
 | descripcion | Text | NOT NULL | Stage description |
 | fecha_inicio | Date | NOT NULL | Start date |
 | fecha_fin | Date | NOT NULL | End date |
+| estado | EstadoEtapa | NOT NULL, default=pendiente | Stage status |
+| fecha_completitud | DateTime(TZ) | NULLABLE | Completion timestamp |
+| bonita_case_id | String(100) | NULLABLE | Bonita case ID (set by Bonita) |
+| bonita_process_instance_id | Integer | NULLABLE | Bonita process instance ID |
 
 **Relationships:**
 - `proyecto` → Many-to-One with Proyecto
@@ -202,6 +206,7 @@ User-submitted offers to cover specific pedidos.
 **EstadoEtapa:**
 - `pendiente` - Awaiting funding
 - `financiada` - All pedidos comprometido/completado
+- `esperando_ejecucion` - All pedidos financed, awaiting manual start
 - `en_ejecucion` - Stage is in execution
 - `completada` - Stage finished
 

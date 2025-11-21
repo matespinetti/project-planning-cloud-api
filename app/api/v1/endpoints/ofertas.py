@@ -12,13 +12,16 @@ from app.db.session import get_db
 from app.models.user import User
 from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
 from app.schemas.oferta import (
-    OfertaCreate,
-    OfertaUpdate,
-    OfertaResponse,
-    OfertaWithUserResponse,
-    OfertaWithPedidoResponse,
-    OfertaDetailedResponse,
     OfertaConfirmacionResponse,
+    OfertaContextResponse,
+    OfertaCreate,
+    OfertaDetailedResponse,
+    OfertaResponse,
+    OfertaUpdate,
+    OfertaWithPedidoResponse,
+    OfertaWithUserResponse,
+    PedidoContextInfo,
+    ProyectoContextInfo,
 )
 from app.services.oferta_service import OfertaService
 
@@ -427,10 +430,28 @@ async def get_all_user_ofertas(
 
     ofertas = await OfertaService.get_all_user_ofertas(db, current_user, estado_oferta)
 
-    # Convert to response schema with nested pedido and etapa info
+    # Convert to response schema with nested pedido, etapa and proyecto info
     response_ofertas = []
     for oferta in ofertas:
-        # Build pedido info with nested etapa
+        # Build proyecto info nested in etapa
+        proyecto_data = {
+            "id": oferta.pedido.etapa.proyecto.id,
+            "titulo": oferta.pedido.etapa.proyecto.titulo,
+            "tipo": oferta.pedido.etapa.proyecto.tipo,
+            "ciudad": oferta.pedido.etapa.proyecto.ciudad,
+            "provincia": oferta.pedido.etapa.proyecto.provincia,
+            "estado": oferta.pedido.etapa.proyecto.estado,
+        }
+
+        # Build etapa info with nested proyecto
+        etapa_data = {
+            "id": oferta.pedido.etapa.id,
+            "nombre": oferta.pedido.etapa.nombre,
+            "estado": oferta.pedido.etapa.estado.value,
+            "proyecto": proyecto_data,
+        }
+
+        # Build pedido info with nested etapa (which contains proyecto)
         pedido_data = {
             "id": oferta.pedido.id,
             "tipo": oferta.pedido.tipo.value,
@@ -440,11 +461,7 @@ async def get_all_user_ofertas(
             "moneda": oferta.pedido.moneda,
             "cantidad": oferta.pedido.cantidad,
             "unidad": oferta.pedido.unidad,
-            "etapa": {
-                "id": oferta.pedido.etapa.id,
-                "nombre": oferta.pedido.etapa.nombre,
-                "estado": oferta.pedido.etapa.estado.value,
-            },
+            "etapa": etapa_data,
         }
 
         # Build complete oferta response
@@ -467,7 +484,7 @@ async def get_all_user_ofertas(
 
 @router.get(
     "/ofertas/{oferta_id}",
-    response_model=OfertaResponse,
+    response_model=OfertaContextResponse,
     responses={
         401: OWNERSHIP_RESPONSES[401],
         404: {
@@ -487,9 +504,9 @@ async def get_oferta(
     oferta_id: UUID,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
-) -> OfertaResponse:
+) -> OfertaContextResponse:
     """
-    Obtener detalles de una oferta específica.
+    Obtener detalles de una oferta específica con información del pedido y proyecto.
     """
     logger.info(f"User {current_user.id} fetching oferta {oferta_id}")
 
@@ -501,7 +518,41 @@ async def get_oferta(
             detail=f"Oferta with id {oferta_id} not found",
         )
 
-    return OfertaResponse.model_validate(oferta)
+    pedido = getattr(oferta, "pedido", None)
+    etapa = getattr(pedido, "etapa", None) if pedido else None
+    proyecto = getattr(etapa, "proyecto", None) if etapa else None
+
+    if not pedido or not etapa or not proyecto:
+        logger.error(
+            "Oferta %s missing related pedido/etapa/proyecto data for response payload",
+            oferta_id,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Oferta relationships are not available to build response payload",
+        )
+
+    base_response = OfertaResponse.model_validate(oferta).model_dump()
+    pedido_context = PedidoContextInfo(
+        id=pedido.id,
+        etapa_id=pedido.etapa_id,
+        proyecto_id=etapa.proyecto_id,
+    )
+    proyecto_estado = (
+        proyecto.estado.value if hasattr(proyecto.estado, "value") else proyecto.estado
+    )
+    proyecto_context = ProyectoContextInfo(
+        id=proyecto.id,
+        bonita_case_id=proyecto.bonita_case_id,
+        titulo=proyecto.titulo,
+        estado=proyecto_estado,
+    )
+
+    return OfertaContextResponse(
+        **base_response,
+        pedido=pedido_context,
+        proyecto=proyecto_context,
+    )
 
 
 @router.patch(

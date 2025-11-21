@@ -10,7 +10,8 @@
 ### EstadoEtapa (Stage States)
 - **PENDIENTE**: Awaiting funding (default state)
 - **FINANCIADA**: All pedidos are at least COMPROMETIDO
-- **EN_EJECUCION**: Stage is in execution (manual manual transition)
+- **ESPERANDO_EJECUCION**: All pedidos financed, waiting for manual start (set when project starts)
+- **EN_EJECUCION**: Stage is in execution (manual transition via start_etapa endpoint)
 - **COMPLETADA**: All pedidos are COMPLETADO
 
 ### EstadoPedido (Coverage Request States)
@@ -91,11 +92,17 @@
    - Used when oferente confirms fulfillment
    - Refreshes etapa state
 
-### Etapa State Auto-Transitions
+### Etapa State Transitions
+
+#### Automatic Transitions (via refresh_etapa_state)
 - **PENDIENTE -> FINANCIADA**: Automatic when all pedidos reach COMPROMETIDO
 - **FINANCIADA -> COMPLETADA**: Automatic when all pedidos reach COMPLETADO
 - **PENDIENTE/FINANCIADA -> PENDIENTE**: If a COMPLETADO pedido regresses (edge case)
-- **EN_EJECUCION**: Manual entry only, stays locked until COMPLETADA
+
+#### Manual Transitions
+- **FINANCIADA -> ESPERANDO_EJECUCION**: When project starts (all pedidos financed)
+- **ESPERANDO_EJECUCION -> EN_EJECUCION**: When calling start_etapa endpoint (Bonita or owner)
+- **EN_EJECUCION -> COMPLETADA**: When calling complete_etapa endpoint (owner only)
 
 ## Service Layer Integration
 

@@ -137,8 +137,8 @@ async def list_project_pedidos(
     project_id: UUID,
     estado: Optional[str] = Query(
         None,
-        description="Filter by estado (pendiente or completado)",
-        pattern="^(pendiente|completado)$",
+        description="Filter by estado (PENDIENTE, COMPROMETIDO, or COMPLETADO)",
+        pattern="^(PENDIENTE|COMPROMETIDO|COMPLETADO)$",
     ),
     db: AsyncSession = Depends(get_db),
 ) -> List[PedidoResponse]:
@@ -151,7 +151,7 @@ async def list_project_pedidos(
     # Convert estado string to enum if provided
     estado_filter = None
     if estado:
-        estado_filter = EstadoPedido.PENDIENTE if estado == "pendiente" else EstadoPedido.COMPLETADO
+        estado_filter = EstadoPedido(estado)
 
     pedidos = await PedidoService.list_by_proyecto(db, project_id, estado_filter)
 
