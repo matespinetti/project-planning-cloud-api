@@ -256,7 +256,17 @@ class ProyectoService:
                 detail=f"Proyecto with id {proyecto_id} not found",
             )
 
-        ProyectoService.verify_ownership(db_proyecto, user)
+        logger.info(
+            f"Attempting to complete project {proyecto_id}. Current estado: {db_proyecto.estado}"
+        )
+
+        # Verify project ownership (skip for Bonita system actor)
+        if not getattr(user, "is_bonita_actor", False):
+            ProyectoService.verify_ownership(db_proyecto, user)
+        else:
+            logger.info(
+                f"Skipping ownership verification for project {db_proyecto.id} because request comes from Bonita"
+            )
 
         if db_proyecto.estado != EstadoProyecto.en_ejecucion.value:
             raise HTTPException(

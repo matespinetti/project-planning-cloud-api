@@ -216,11 +216,20 @@ class EtapaService:
                 detail=f"Etapa with id {etapa_id} not found",
             )
 
-        # Verify project ownership
-        if db_etapa.proyecto.user_id != user.id:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only the project owner can complete etapas",
+        logger.info(
+            f"Attempting to complete etapa {etapa_id}. Current estado: {db_etapa.estado.value}"
+        )
+
+        # Verify project ownership (skip for Bonita system actor)
+        if not getattr(user, "is_bonita_actor", False):
+            if db_etapa.proyecto.user_id != user.id:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Only the project owner can complete etapas",
+                )
+        else:
+            logger.info(
+                f"Skipping ownership verification for etapa {db_etapa.id} because request comes from Bonita"
             )
 
         # Check project is in execution
