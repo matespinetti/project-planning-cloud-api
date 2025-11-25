@@ -2436,9 +2436,11 @@ Crea una nueva observación sobre un proyecto en ejecución. **Solo miembros del
 
 #### Parámetros
 
-| Campo         | Tipo   | Requerido | Descripción                                              |
-| ------------- | ------ | --------- | -------------------------------------------------------- |
-| `descripcion` | string | Sí        | Descripción de la observación (mínimo 10 caracteres)     |
+| Campo                        | Tipo    | Requerido | Descripción                                              |
+| ---------------------------- | ------- | --------- | -------------------------------------------------------- |
+| `descripcion`                | string  | Sí        | Descripción de la observación (mínimo 10 caracteres)     |
+| `bonita_case_id`             | string  | No        | ID de caso Bonita para rastreo de workflow               |
+| `bonita_process_instance_id` | integer | No        | ID de instancia de proceso Bonita                        |
 
 #### Comportamiento Automático
 
@@ -2450,7 +2452,9 @@ Crea una nueva observación sobre un proyecto en ejecución. **Solo miembros del
 
 ```json
 {
-	"descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte. Por favor revisar y ajustar el presupuesto según lo conversado en la reunión del consejo."
+	"descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte. Por favor revisar y ajustar el presupuesto según lo conversado en la reunión del consejo.",
+	"bonita_case_id": "CASE-2024-001",
+	"bonita_process_instance_id": 12345
 }
 ```
 
@@ -2466,6 +2470,8 @@ Crea una nueva observación sobre un proyecto en ejecución. **Solo miembros del
 	"fecha_limite": "2024-10-27",
 	"respuesta": null,
 	"fecha_resolucion": null,
+	"bonita_case_id": "CASE-2024-001",
+	"bonita_process_instance_id": 12345,
 	"created_at": "2024-10-22T10:00:00+00:00",
 	"updated_at": "2024-10-22T10:00:00+00:00"
 }
@@ -2550,6 +2556,8 @@ Obtiene todas las observaciones de un proyecto, con información del consejero q
 		"fecha_limite": "2024-10-27",
 		"respuesta": null,
 		"fecha_resolucion": null,
+		"bonita_case_id": "CASE-2024-001",
+		"bonita_process_instance_id": 12345,
 		"created_at": "2024-10-22T10:00:00+00:00",
 		"updated_at": "2024-10-22T10:00:00+00:00",
 		"council_user_email": "consejo@ong.org",
@@ -2563,6 +2571,8 @@ Obtiene todas las observaciones de un proyecto, con información del consejero q
 		"descripcion": "El cronograma de la etapa 2 parece muy ajustado. Considerar ampliar plazos.",
 		"estado": "resuelta",
 		"fecha_limite": "2024-10-20",
+		"bonita_case_id": null,
+		"bonita_process_instance_id": null,
 		"respuesta": "Hemos revisado el cronograma y agregado 2 semanas adicionales a la etapa 2 según su recomendación.",
 		"fecha_resolucion": "2024-10-19T14:30:00+00:00",
 		"created_at": "2024-10-15T10:00:00+00:00",
