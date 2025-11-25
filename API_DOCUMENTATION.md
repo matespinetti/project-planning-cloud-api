@@ -2417,6 +2417,14 @@ curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/ofertas/mis-
 
 El módulo de **observaciones** permite al consejo directivo realizar seguimiento y control de proyectos en ejecución. Los miembros del consejo pueden crear observaciones que deben ser resueltas por los ejecutores de proyecto dentro de 5 días, con marcado automático como vencidas si no se resuelven a tiempo.
 
+**Rutas principales**
+- `POST /api/v1/projects/{project_id}/observaciones`: crear observación para un proyecto en ejecución
+- `GET /api/v1/projects/{project_id}/observaciones`: listar observaciones de un proyecto
+- `GET /api/v1/observaciones`: listado global con filtros
+- `PATCH /api/v1/observaciones/{observacion_id}`: actualizar metadatos (no resolver)
+- `POST /api/v1/observaciones/{observacion_id}/resolve`: resolver una observación
+- `POST /api/v1/observaciones/{observacion_id}/expire`: marcar como vencida
+
 ### 1️⃣ Crear Observación para Proyecto
 
 Crea una nueva observación sobre un proyecto en ejecución. **Solo miembros del consejo (role=COUNCIL)** pueden crear observaciones.

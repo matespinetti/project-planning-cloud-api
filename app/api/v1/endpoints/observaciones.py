@@ -5,7 +5,7 @@ from datetime import date
 from typing import List, Optional
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps.auth import get_current_user, require_roles
@@ -478,6 +478,42 @@ async def list_observaciones(
     return response_observaciones
 
 
+@router.post(
+    "/observaciones/{observacion_id}/resolve",
+    response_model=ObservacionResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - Only project executor or Bonita can resolve observations",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only the project executor (owner) can resolve observations"
+                    }
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Observation does not exist",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Observacion with id ... not found"}
+                }
+            },
+        },
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Observation already resolved",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Observacion is already resolved"}
+                }
+            },
+        },
+    },
+)
 async def resolve_observacion(
     observacion_id: UUID,
     resolve_data: ObservacionResolve,
