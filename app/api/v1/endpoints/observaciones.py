@@ -191,6 +191,54 @@ async def list_all_observaciones(
     )
 
 
+@router.get(
+    "/observaciones/{observacion_id}",
+    response_model=ObservacionResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Observation does not exist",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Observacion with id ... not found"}
+                }
+            },
+        },
+    },
+)
+async def get_observacion(
+    observacion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ObservacionResponse:
+    """
+    Obtener una observación específica por ID.
+
+    **Autorización:** Cualquier usuario autenticado
+
+    **Comportamiento:**
+    - Retorna la observación con todos sus detalles
+    - Automáticamente verifica y actualiza si está vencida
+    - Incluye información del consejero que la creó
+
+    **Ejemplo de uso:**
+    - `GET /api/v1/observaciones/623e4567-e89b-12d3-a456-426614174555`
+    """
+    logger.info(f"User {current_user.id} fetching observacion {observacion_id}")
+
+    observacion = await ObservacionService.get_by_id(db, observacion_id)
+
+    if not observacion:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Observacion with id {observacion_id} not found",
+        )
+
+    logger.info(f"Successfully retrieved observacion {observacion_id}")
+    return ObservacionResponse.model_validate(observacion)
+
+
 @router.patch(
     "/observaciones/{observacion_id}",
     response_model=ObservacionResponse,
