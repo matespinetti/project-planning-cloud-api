@@ -264,7 +264,12 @@ async def create_observacion(
     )
 
     observacion = await ObservacionService.create(
-        db, project_id, observacion_data.descripcion, current_user
+        db,
+        project_id,
+        observacion_data.descripcion,
+        current_user,
+        bonita_case_id=observacion_data.bonita_case_id,
+        bonita_process_instance_id=observacion_data.bonita_process_instance_id,
     )
 
     logger.info(

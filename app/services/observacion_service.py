@@ -26,6 +26,8 @@ class ObservacionService:
         proyecto_id: UUID,
         descripcion: str,
         council_user: User,
+        bonita_case_id: Optional[str] = None,
+        bonita_process_instance_id: Optional[int] = None,
     ) -> Observacion:
         """
         Create a new observacion for a project.
@@ -39,6 +41,8 @@ class ObservacionService:
             proyecto_id: ID of the project to observe
             descripcion: Observation description
             council_user: Council member creating the observation
+            bonita_case_id: Optional Bonita case ID for workflow tracking
+            bonita_process_instance_id: Optional Bonita process instance ID
 
         Returns:
             Created Observacion instance
@@ -79,6 +83,8 @@ class ObservacionService:
             descripcion=descripcion,
             estado=EstadoObservacion.pendiente,
             fecha_limite=fecha_limite,
+            bonita_case_id=bonita_case_id,
+            bonita_process_instance_id=bonita_process_instance_id,
         )
 
         db.add(db_observacion)

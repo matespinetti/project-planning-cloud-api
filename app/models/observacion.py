@@ -4,7 +4,7 @@ from datetime import date, datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Date, DateTime, Enum, ForeignKey, Text, func
+from sqlalchemy import Date, DateTime, Enum, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -67,6 +67,14 @@ class Observacion(Base):
     respuesta: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     fecha_resolucion: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
+    )
+
+    # Bonita Integration (for workflow tracking)
+    bonita_case_id: Mapped[Optional[str]] = mapped_column(
+        String(100), nullable=True
+    )
+    bonita_process_instance_id: Mapped[Optional[int]] = mapped_column(
+        nullable=True
     )
 
     # Timestamps (auto-managed)

@@ -13,6 +13,8 @@ class ObservacionCreate(BaseModel):
     descripcion: str = Field(
         ..., min_length=10, description="Observation description from council member"
     )
+    bonita_case_id: Optional[str] = Field(None, max_length=100, description="Bonita case ID for workflow tracking")
+    bonita_process_instance_id: Optional[int] = Field(None, description="Bonita process instance ID")
 
 
 class ObservacionResolve(BaseModel):
@@ -57,6 +59,8 @@ class ObservacionResponse(BaseModel):
     fecha_limite: date
     respuesta: Optional[str] = None
     fecha_resolucion: Optional[datetime] = None
+    bonita_case_id: Optional[str] = None
+    bonita_process_instance_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -74,6 +78,8 @@ class ObservacionWithUserResponse(BaseModel):
     fecha_limite: date
     respuesta: Optional[str] = None
     fecha_resolucion: Optional[datetime] = None
+    bonita_case_id: Optional[str] = None
+    bonita_process_instance_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
@@ -96,6 +102,8 @@ class ObservacionDetailedResponse(BaseModel):
     fecha_limite: date
     respuesta: Optional[str] = None
     fecha_resolucion: Optional[datetime] = None
+    bonita_case_id: Optional[str] = None
+    bonita_process_instance_id: Optional[int] = None
     created_at: datetime
     updated_at: datetime
 
