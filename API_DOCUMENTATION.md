@@ -2802,6 +2802,120 @@ curl -X GET "https://project-planning-cloud-api.onrender.com/api/v1/observacione
 
 ---
 
+### 3️⃣.1️⃣ Actualizar Observación
+
+Actualiza parcialmente una observación existente. Solo el consejero que la creó o el dueño del proyecto pueden actualizarla.
+
+**Método:** `PATCH`
+**Ruta:** `/api/v1/observaciones/{observacion_id}`
+**Autenticación:** Requerida (Bearer Token)
+**Autorización:** Solo el consejero que creó la observación o el dueño del proyecto
+**Código de Respuesta:** `200 OK`
+
+#### Path Parameters
+
+| Parámetro        | Tipo | Descripción                   |
+| ---------------- | ---- | ----------------------------- |
+| `observacion_id` | UUID | ID de la observación a actualizar |
+
+#### Campos Actualizables
+
+Todos los campos son opcionales. Solo se actualizan los que proporcionas:
+
+| Campo                        | Tipo    | Descripción                    |
+| ---------------------------- | ------- | ------------------------------ |
+| `descripcion`                | string  | Nueva descripción (mín. 10 caracteres) |
+| `bonita_case_id`             | string  | ID de caso Bonita              |
+| `bonita_process_instance_id` | integer | ID de instancia de proceso Bonita |
+
+#### Nota Importante
+
+Los siguientes campos **NO se pueden modificar** con PATCH:
+- `estado`: Use la resolución o acciones del sistema
+- `respuesta` y `fecha_resolucion`: Use el endpoint `/resolve` para resolver
+- `fecha_limite`, `council_user_id`, `proyecto_id`: Son inmutables
+- `created_at`, `updated_at`: Auto-gestionados por el sistema
+
+#### Body de Prueba
+
+```json
+{
+	"descripcion": "Se observa que el presupuesto necesita ajustes. Revisar con el contable.",
+	"bonita_case_id": "CASE-2024-002"
+}
+```
+
+#### Response Exitoso (200)
+
+```json
+{
+	"id": "623e4567-e89b-12d3-a456-426614174555",
+	"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+	"council_user_id": "550e8400-e29b-41d4-a716-446655440003",
+	"descripcion": "Se observa que el presupuesto necesita ajustes. Revisar con el contable.",
+	"estado": "pendiente",
+	"fecha_limite": "2024-10-27",
+	"respuesta": null,
+	"fecha_resolucion": null,
+	"bonita_case_id": "CASE-2024-002",
+	"bonita_process_instance_id": null,
+	"created_at": "2024-10-22T10:00:00+00:00",
+	"updated_at": "2024-11-21T15:30:00+00:00"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                      | Ejemplo de Error                                                                                                              | Solución                                      |
+| ------ | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `401`  | Token inválido o faltante        | `{"detail": "Invalid or expired token"}`                                                                                      | Proporciona un access_token válido            |
+| `403`  | No tienes permisos para actualizar | `{"detail": "Only the council member who created the observation or the project owner can update it"}`                       | Solo el creador o dueño del proyecto puede actualizar |
+| `404`  | Observación no encontrada        | `{"detail": "Observacion with id ... not found"}`                                                                             | Verifica que el observacion_id sea correcto   |
+| `422`  | Validación fallida               | `{"detail": [{"loc": ["body", "descripcion"], "msg": "ensure this value has at least 10 characters", "type": "value_error"}]}` | Revisa los datos proporcionados              |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. Busca "PATCH /api/v1/observaciones/{observacion_id}"
+3. Click "Try it out"
+4. Pega el UUID de la observación
+5. Completa el JSON con los campos a actualizar
+6. Click "Execute"
+
+**Opción 2: cURL (Consejero que creó la observación)**
+
+```bash
+TOKEN="token_del_consejero_aqui"
+OBSERVACION_ID="623e4567-e89b-12d3-a456-426614174555"
+
+curl -X PATCH https://project-planning-cloud-api.onrender.com/api/v1/observaciones/$OBSERVACION_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "descripcion": "Se observa que el presupuesto necesita ajustes. Revisar con el contable.",
+    "bonita_case_id": "CASE-2024-002"
+  }'
+```
+
+**Opción 3: cURL (Propietario del proyecto)**
+
+```bash
+TOKEN="token_del_propietario_aqui"
+OBSERVACION_ID="623e4567-e89b-12d3-a456-426614174555"
+
+curl -X PATCH https://project-planning-cloud-api.onrender.com/api/v1/observaciones/$OBSERVACION_ID \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "bonita_case_id": "CASE-2024-002",
+    "bonita_process_instance_id": 67890
+  }'
+```
+
+---
+
 ### 4️⃣ Resolver Observación
 
 Permite al ejecutor del proyecto (dueño) resolver una observación proporcionando una respuesta. Se puede resolver incluso si está vencida.
