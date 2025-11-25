@@ -199,6 +199,70 @@ class ObservacionService:
         return observaciones
 
     @staticmethod
+    async def update(
+        db: AsyncSession,
+        observacion_id: UUID,
+        update_data: dict,
+        current_user: User,
+    ) -> Observacion:
+        """
+        Update an observacion (PATCH).
+
+        Only the council member who created the observation or the project owner can update it.
+        Deadline, resolution info, and estado cannot be modified.
+
+        Args:
+            db: Database session
+            observacion_id: ID of the observacion to update
+            update_data: Dictionary with fields to update (descripcion, bonita_case_id, bonita_process_instance_id)
+            current_user: User performing the update
+
+        Returns:
+            Updated Observacion instance
+
+        Raises:
+            HTTPException: If not found or insufficient permissions
+        """
+        # Get observacion with proyecto relationship
+        stmt = (
+            select(Observacion)
+            .where(Observacion.id == observacion_id)
+            .options(joinedload(Observacion.proyecto))
+        )
+        result = await db.execute(stmt)
+        observacion = result.unique().scalar_one_or_none()
+
+        if not observacion:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Observacion with id {observacion_id} not found",
+            )
+
+        # Check and update if overdue
+        ObservacionService._check_and_update_overdue(observacion)
+
+        # Verify authorization: council member who created it or project owner
+        is_creator = observacion.council_user_id == current_user.id
+        is_project_owner = observacion.proyecto.user_id == current_user.id
+
+        if not (is_creator or is_project_owner):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the council member who created the observation or the project owner can update it",
+            )
+
+        # Update only provided fields
+        for key, value in update_data.items():
+            if value is not None and hasattr(observacion, key):
+                setattr(observacion, key, value)
+
+        await db.commit()
+        await db.refresh(observacion)
+
+        logger.info(f"Observacion {observacion_id} updated by user {current_user.id}")
+        return observacion
+
+    @staticmethod
     async def resolve(
         db: AsyncSession,
         observacion_id: UUID,

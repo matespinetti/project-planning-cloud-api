@@ -17,6 +17,14 @@ class ObservacionCreate(BaseModel):
     bonita_process_instance_id: Optional[int] = Field(None, description="Bonita process instance ID")
 
 
+class ObservacionUpdate(BaseModel):
+    """Schema for updating an observacion (PATCH) - all fields optional."""
+
+    descripcion: Optional[str] = Field(None, min_length=10, description="Updated observation description")
+    bonita_case_id: Optional[str] = Field(None, max_length=100, description="Updated Bonita case ID")
+    bonita_process_instance_id: Optional[int] = Field(None, description="Updated Bonita process instance ID")
+
+
 class ObservacionResolve(BaseModel):
     """Schema for resolving an observacion (project executor)."""
 

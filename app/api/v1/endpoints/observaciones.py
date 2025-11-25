@@ -18,6 +18,7 @@ from app.schemas.observacion import (
     ObservacionListResponse,
     ObservacionResolve,
     ObservacionResponse,
+    ObservacionUpdate,
     ObservacionWithUserResponse,
 )
 from app.services.observacion_service import ObservacionService
@@ -188,6 +189,80 @@ async def list_all_observaciones(
         page_size=page_size,
         pages=total_pages,
     )
+
+
+@router.patch(
+    "/observaciones/{observacion_id}",
+    response_model=ObservacionResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - Only creator or project owner can update",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Only the council member who created the observation or the project owner can update it"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Observation does not exist",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Observacion with id ... not found"}
+                }
+            },
+        },
+        422: {
+            "model": ValidationErrorDetail,
+            "description": "Validation Error - Invalid update data",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": [
+                            {
+                                "loc": ["body", "descripcion"],
+                                "msg": "ensure this value has at least 10 characters",
+                                "type": "value_error",
+                            }
+                        ]
+                    }
+                }
+            },
+        },
+    },
+)
+async def update_observacion(
+    observacion_id: UUID,
+    update_data: ObservacionUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ObservacionResponse:
+    """
+    Actualizar una observación por ID (PATCH).
+
+    **Autorización:**
+    - El consejero que creó la observación
+    - O el dueño del proyecto
+
+    **Campos actualizables:**
+    - descripcion: Nueva descripción (mínimo 10 caracteres)
+    - bonita_case_id: ID de caso Bonita
+    - bonita_process_instance_id: ID de instancia de proceso Bonita
+
+    **Nota:** Los campos de resolución (respuesta, fecha_resolucion, estado) no se pueden modificar directamente con PATCH.
+    Use el endpoint POST /observaciones/{observacion_id}/resolve para resolver observaciones.
+    """
+    logger.info(f"User {current_user.id} updating observacion {observacion_id}")
+
+    # Build update dict with only provided (non-None) fields
+    update_dict = update_data.model_dump(exclude_unset=True)
+
+    observacion = await ObservacionService.update(db, observacion_id, update_dict, current_user)
+
+    logger.info(f"Successfully updated observacion {observacion_id}")
+    return ObservacionResponse.model_validate(observacion)
 
 
 @router.post(
