@@ -274,6 +274,7 @@ class ObservacionService:
 
         Only the project executor (owner) can resolve observations.
         Can resolve even if observation is overdue (vencida).
+        Bonita system actor can bypass ownership check.
 
         Args:
             db: Database session
@@ -305,8 +306,9 @@ class ObservacionService:
         # Check and update if overdue
         ObservacionService._check_and_update_overdue(observacion)
 
-        # Verify user is the project owner
-        if observacion.proyecto.user_id != executor_user.id:
+        # Verify user is the project owner or is Bonita system actor
+        is_bonita_actor = getattr(executor_user, "is_bonita_actor", False)
+        if not (observacion.proyecto.user_id == executor_user.id or is_bonita_actor):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Only the project executor (owner) can resolve observations",
@@ -330,6 +332,78 @@ class ObservacionService:
         logger.info(
             f"Observacion {observacion_id} resolved by user {executor_user.id}. "
             f"Was {'overdue' if observacion.estado == EstadoObservacion.vencida else 'on time'}"
+        )
+        return observacion
+
+    @staticmethod
+    async def expire(
+        db: AsyncSession,
+        observacion_id: UUID,
+        executor_user: User,
+    ) -> Observacion:
+        """
+        Expire an observacion (mark as vencida).
+
+        Only the project executor (owner) or Bonita system actor can expire observations.
+        Used when an observation passes its deadline without being resolved.
+
+        Args:
+            db: Database session
+            observacion_id: ID of the observacion to expire
+            executor_user: User expiring the observation
+
+        Returns:
+            Expired Observacion instance
+
+        Raises:
+            HTTPException: If not found, not project owner, or already expired/resolved
+        """
+        # Get observacion with proyecto relationship
+        stmt = (
+            select(Observacion)
+            .where(Observacion.id == observacion_id)
+            .options(joinedload(Observacion.proyecto))
+        )
+        result = await db.execute(stmt)
+        observacion = result.unique().scalar_one_or_none()
+
+        if not observacion:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Observacion with id {observacion_id} not found",
+            )
+
+        # Verify user is the project owner or is Bonita system actor
+        is_bonita_actor = getattr(executor_user, "is_bonita_actor", False)
+        if not (observacion.proyecto.user_id == executor_user.id or is_bonita_actor):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the project executor (owner) or Bonita can expire observations",
+            )
+
+        # Check if already resolved
+        if observacion.estado == EstadoObservacion.resuelta:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot expire an already resolved observation",
+            )
+
+        # Check if already expired
+        if observacion.estado == EstadoObservacion.vencida:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Observacion is already expired",
+            )
+
+        # Expire the observacion
+        observacion.estado = EstadoObservacion.vencida
+
+        await db.commit()
+        await db.refresh(observacion)
+
+        logger.info(
+            f"Observacion {observacion_id} expired by user {executor_user.id}. "
+            f"Deadline was {observacion.fecha_limite}"
         )
         return observacion
 

@@ -2918,12 +2918,12 @@ curl -X PATCH https://project-planning-cloud-api.onrender.com/api/v1/observacion
 
 ### 4️⃣ Resolver Observación
 
-Permite al ejecutor del proyecto (dueño) resolver una observación proporcionando una respuesta. Se puede resolver incluso si está vencida.
+Permite al ejecutor del proyecto (dueño) resolver una observación proporcionando una respuesta. Se puede resolver incluso si está vencida. Bonita también puede resolver observaciones con bypass X-API-Key.
 
 **Método:** `POST`
 **Ruta:** `/api/v1/observaciones/{observacion_id}/resolve`
-**Autenticación:** Requerida (Bearer Token)
-**Autorización:** Solo el dueño del proyecto asociado
+**Autenticación:** Requerida (Bearer Token o X-API-Key para Bonita)
+**Autorización:** Solo el dueño del proyecto o Bonita (X-API-Key)
 **Código de Respuesta:** `200 OK`
 
 #### Path Parameters
@@ -2974,8 +2974,8 @@ Permite al ejecutor del proyecto (dueño) resolver una observación proporcionan
 
 | Código | Descripción                      | Ejemplo de Error                                                                                          | Solución                                        |
 | ------ | -------------------------------- | --------------------------------------------------------------------------------------------------------- | ----------------------------------------------- |
-| `401`  | Token inválido o faltante        | `{"detail": "Invalid or expired token"}`                                                                  | Proporciona un access_token válido              |
-| `403`  | No eres el dueño del proyecto    | `{"detail": "Only the project executor (owner) can resolve observations"}`                                | Solo el dueño del proyecto puede resolver       |
+| `401`  | Token inválido o faltante        | `{"detail": "Invalid or expired token"}`                                                                  | Proporciona un access_token o X-API-Key válido  |
+| `403`  | No tienes permisos para resolver | `{"detail": "Only the project executor (owner) can resolve observations"}`                                | Solo dueño del proyecto o Bonita puede resolver |
 | `404`  | Observación no encontrada        | `{"detail": "Observacion with id ... not found"}`                                                         | Verifica que el observacion_id sea correcto     |
 | `400`  | Observación ya resuelta          | `{"detail": "Observacion is already resolved"}`                                                           | Esta observación ya fue resuelta anteriormente  |
 | `422`  | Validación fallida               | `{"detail": [{"loc": ["body", "respuesta"], "msg": "ensure this value has at least 10 characters"}]}`     | La respuesta debe tener al menos 10 caracteres  |
@@ -2992,7 +2992,7 @@ Permite al ejecutor del proyecto (dueño) resolver una observación proporcionan
 6. Completa el JSON con tu respuesta
 7. Click "Execute"
 
-**Opción 2: cURL**
+**Opción 2: cURL (Usuario - Propietario del Proyecto)**
 
 ```bash
 # Token del dueño del proyecto
@@ -3005,6 +3005,107 @@ curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/observacione
   -d '{
     "respuesta": "Gracias por la observación. He revisado el presupuesto y agregado una partida para costos de transporte de $500 USD. El documento actualizado está disponible en la sección de archivos."
   }'
+```
+
+**Opción 3: cURL (Bonita System Actor)**
+
+```bash
+# X-API-Key header para Bonita
+API_KEY="your-bonita-api-key"
+OBSERVACION_ID="623e4567-e89b-12d3-a456-426614174555"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/observaciones/$OBSERVACION_ID/resolve \
+  -H "X-API-Key: $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "respuesta": "Observación resuelta automáticamente por proceso Bonita. Revisar detalles en el caso Bonita."
+  }'
+```
+
+---
+
+### 5️⃣ Expirar Observación
+
+Marca una observación como vencida (expirada). Solo el ejecutor del proyecto o Bonita pueden expirar observaciones.
+
+**Método:** `POST`
+**Ruta:** `/api/v1/observaciones/{observacion_id}/expire`
+**Autenticación:** Requerida (Bearer Token)
+**Autorización:** Solo el dueño del proyecto o Bonita (X-API-Key)
+**Código de Respuesta:** `200 OK`
+
+#### Path Parameters
+
+| Parámetro        | Tipo | Descripción                    |
+| ---------------- | ---- | ------------------------------ |
+| `observacion_id` | UUID | ID de la observación a expirar |
+
+#### Comportamiento
+
+- **Cambio de estado:** Cambia automáticamente a `vencida`
+- **No modifica resolución:** No afecta respuesta ni fecha de resolución
+- **Irreversible:** Una vez vencida, solo se puede resolver
+- **Casos de uso:**
+  - Expirar automáticamente cuando pasan 5 días sin resolver
+  - Marcar manualmente una observación como expirada
+
+#### Response Exitoso (200)
+
+```json
+{
+	"id": "623e4567-e89b-12d3-a456-426614174555",
+	"proyecto_id": "123e4567-e89b-12d3-a456-426614174000",
+	"council_user_id": "550e8400-e29b-41d4-a716-446655440003",
+	"descripcion": "Se observa que el presupuesto destinado a materiales no incluye costos de transporte.",
+	"estado": "vencida",
+	"fecha_limite": "2024-10-27",
+	"respuesta": null,
+	"fecha_resolucion": null,
+	"created_at": "2024-10-22T10:00:00+00:00",
+	"updated_at": "2024-10-27T23:59:59+00:00"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción                           | Ejemplo de Error                                                                      | Solución                                      |
+| ------ | ------------------------------------- | ------------------------------------------------------------------------------------- | --------------------------------------------- |
+| `401`  | Token inválido o faltante             | `{"detail": "Invalid or expired token"}`                                              | Proporciona un access_token válido            |
+| `403`  | No tienes permisos para expirar       | `{"detail": "Only the project executor (owner) or Bonita can expire observations"}` | Solo dueño del proyecto o Bonita puede expirar |
+| `404`  | Observación no encontrada             | `{"detail": "Observacion with id ... not found"}`                                     | Verifica que el observacion_id sea correcto   |
+| `400`  | Observación ya vencida o resuelta     | `{"detail": "Observacion is already expired"}`                                       | La observación ya está vencida o resuelta     |
+
+#### Instrucciones para Probar
+
+**Opción 1: Swagger UI (Recomendado)**
+
+1. Abre: `https://project-planning-cloud-api.onrender.com/docs`
+2. **Importante:** Autentícate con el usuario dueño del proyecto
+3. Busca "POST /api/v1/observaciones/{observacion_id}/expire"
+4. Click "Try it out"
+5. Pega el UUID de la observación
+6. Click "Execute"
+
+**Opción 2: cURL (Usuario - Propietario del Proyecto)**
+
+```bash
+# Token del dueño del proyecto
+TOKEN="tu_access_token_de_ejecutor_aqui"
+OBSERVACION_ID="623e4567-e89b-12d3-a456-426614174555"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/observaciones/$OBSERVACION_ID/expire \
+  -H "Authorization: Bearer $TOKEN"
+```
+
+**Opción 3: cURL (Bonita System Actor)**
+
+```bash
+# X-API-Key header para Bonita
+API_KEY="your-bonita-api-key"
+OBSERVACION_ID="623e4567-e89b-12d3-a456-426614174555"
+
+curl -X POST https://project-planning-cloud-api.onrender.com/api/v1/observaciones/$OBSERVACION_ID/expire \
+  -H "X-API-Key: $API_KEY"
 ```
 
 ---
@@ -3026,17 +3127,29 @@ Este es el flujo típico de trabajo con observaciones:
    • Ve todas las observaciones pendientes
    • Observaciones vencidas aparecen automáticamente marcadas
 
-3. EJECUTOR RESUELVE OBSERVACIÓN
+3a. EJECUTOR RESUELVE OBSERVACIÓN (Opción: Completación Manual)
    POST /api/v1/observaciones/{id}/resolve
    • Requiere ser dueño del proyecto
    • Proporciona respuesta detallada
    • Estado cambia a 'resuelta'
    • Se registra timestamp de resolución
 
+3b. EXPIRAR OBSERVACIÓN (Opción: Vencimiento Automático)
+   POST /api/v1/observaciones/{id}/expire
+   • Requiere ser dueño del proyecto o Bonita
+   • Marca como 'vencida' si no fue resuelta en 5 días
+   • Usado cuando observación supera fecha límite
+   • Bonita puede expirar automáticamente con X-API-Key
+
 4. CONSEJO VERIFICA RESOLUCIÓN
    GET /api/v1/projects/{id}/observaciones?estado=resuelta
    • Puede ver la respuesta del ejecutor
    • Confirma que la observación fue atendida
+
+5. CONSEJO VERIFICA VENCIDAS
+   GET /api/v1/projects/{id}/observaciones?estado=vencida
+   • Ve observaciones que no fueron resueltas a tiempo
+   • Puede realizar seguimiento de incumplimientos
 ```
 
 ### Estados de Observaciones

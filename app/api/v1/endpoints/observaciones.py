@@ -430,42 +430,6 @@ async def list_observaciones(
     return response_observaciones
 
 
-@router.post(
-    "/observaciones/{observacion_id}/resolve",
-    response_model=ObservacionResponse,
-    responses={
-        401: OWNERSHIP_RESPONSES[401],
-        403: {
-            "model": ErrorDetail,
-            "description": "Forbidden - Only project executor can resolve observations",
-            "content": {
-                "application/json": {
-                    "example": {
-                        "detail": "Only the project executor (owner) can resolve observations"
-                    }
-                }
-            },
-        },
-        404: {
-            "model": ErrorDetail,
-            "description": "Not Found - Observation does not exist",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Observacion with id ... not found"}
-                }
-            },
-        },
-        400: {
-            "model": ErrorDetail,
-            "description": "Bad Request - Observation already resolved",
-            "content": {
-                "application/json": {
-                    "example": {"detail": "Observacion is already resolved"}
-                }
-            },
-        },
-    },
-)
 async def resolve_observacion(
     observacion_id: UUID,
     resolve_data: ObservacionResolve,
@@ -475,17 +439,19 @@ async def resolve_observacion(
     """
     Resolver una observación.
 
-    **Autorización:** Solo el ejecutor del proyecto (dueño)
+    **Autorización:** 
+    - El ejecutor del proyecto (dueño)
+    - O el sistema Bonita (con X-API-Key header)
 
     **Validaciones:**
     - El usuario debe ser el dueño del proyecto asociado a la observación
     - La observación no debe estar ya resuelta
+    - Puede resolver observaciones incluso si están vencidas
 
     **Comportamiento:**
     - Cambia el estado a 'resuelta'
     - Guarda la respuesta del ejecutor
     - Registra la fecha y hora de resolución
-    - Puede resolver observaciones incluso si están vencidas
 
     **Campos requeridos:**
     - respuesta: Respuesta del ejecutor a la observación (mínimo 10 caracteres)
@@ -504,4 +470,79 @@ async def resolve_observacion(
     )
 
     logger.info(f"Successfully resolved observacion {observacion_id}")
+    return ObservacionResponse.model_validate(observacion)
+
+
+@router.post(
+    "/observaciones/{observacion_id}/expire",
+    response_model=ObservacionResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - Only project executor or Bonita can expire observations",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Only the project executor (owner) or Bonita can expire observations"
+                    }
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Observation does not exist",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Observacion with id ... not found"}
+                }
+            },
+        },
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Observation already expired or resolved",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Observacion is already expired"}
+                }
+            },
+        },
+    },
+)
+async def expire_observacion(
+    observacion_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> ObservacionResponse:
+    """
+    Marcar una observación como vencida (expirada).
+
+    **Autorización:**
+    - El ejecutor del proyecto (dueño)
+    - O el sistema Bonita (con X-API-Key header)
+
+    **Validaciones:**
+    - El usuario debe ser el dueño del proyecto asociado a la observación
+    - La observación no debe estar ya resuelta o vencida
+
+    **Comportamiento:**
+    - Cambia el estado a 'vencida' (expirada)
+    - No modifica la respuesta ni fecha de resolución
+    - Se usa cuando una observación supera su fecha límite sin ser resuelta
+
+    **Casos de uso:**
+    - Expirar observaciones automáticamente cuando pasan 5 días sin resolver
+    - Marcar manualmente una observación como vencida
+
+    **Ejemplo de uso:**
+    ```bash
+    curl -X POST http://localhost:8001/api/v1/observaciones/{observacion_id}/expire \
+      -H "Authorization: Bearer {access_token}"
+    ```
+    """
+    logger.info(f"User {current_user.id} attempting to expire observacion {observacion_id}")
+
+    observacion = await ObservacionService.expire(db, observacion_id, current_user)
+
+    logger.info(f"Successfully expired observacion {observacion_id}")
     return ObservacionResponse.model_validate(observacion)
