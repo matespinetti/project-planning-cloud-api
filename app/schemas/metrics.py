@@ -1,10 +1,13 @@
 """Metrics Pydantic schemas."""
 
 from datetime import date
-from typing import Dict, List, Optional
+from typing import Dict, List, Literal, Optional
 from uuid import UUID
 
 from pydantic import BaseModel, Field
+
+from app.models.etapa import EstadoEtapa
+from app.models.proyecto import EstadoProyecto
 
 
 # ============================================================================
@@ -32,6 +35,15 @@ class DashboardMetrics(BaseModel):
     tasa_exito: float = Field(
         ..., description="Success rate: % of completed projects vs total"
     )
+    proyectos_en_riesgo: int = Field(
+        ..., description="Projects with etapas past their due date"
+    )
+    velocidad_completacion: float = Field(
+        ..., description="Average projects completed per week"
+    )
+    observaciones_vencidas_total: int = Field(
+        ..., description="Total overdue observations in the system"
+    )
 
 
 # ============================================================================
@@ -47,7 +59,7 @@ class EtapaTracking(BaseModel):
     descripcion: str
     fecha_inicio: date
     fecha_fin: date
-    estado: str = Field(..., description="Etapa lifecycle state")
+    estado: EstadoEtapa = Field(..., description="Etapa lifecycle state")
     total_pedidos: int
     pedidos_completados: int
     pedidos_pendientes: int
@@ -58,6 +70,12 @@ class EtapaTracking(BaseModel):
     dias_transcurridos: Optional[int] = Field(
         None, description="Days since start date (if started)"
     )
+    estado_salud: Literal["en_tiempo", "retrasado", "completado"] = Field(
+        ..., description="Health status: on-time, overdue, or completed"
+    )
+    dias_restantes: Optional[int] = Field(
+        None, description="Days remaining until due date (negative if overdue)"
+    )
 
 
 class ProyectoTrackingMetrics(BaseModel):
@@ -65,7 +83,7 @@ class ProyectoTrackingMetrics(BaseModel):
 
     proyecto_id: UUID
     titulo: str
-    estado: str
+    estado: EstadoProyecto
     etapas: List[EtapaTracking]
     total_pedidos: int
     pedidos_completados: int
@@ -93,23 +111,19 @@ class TopContribuidor(BaseModel):
     nombre: str
     apellido: str
     ong: str
-    ofertas_realizadas: int
-    ofertas_aceptadas: int
     tasa_aceptacion: float = Field(..., description="Acceptance rate percentage")
 
 
 class CommitmentMetrics(BaseModel):
     """Metrics about network commitments (ofertas)."""
 
-    total_pedidos: int
-    pedidos_con_ofertas: int
+    total_pedidos: int = Field(..., description="Total number of pedidos in the system")
+    pedidos_con_ofertas: int = Field(
+        ..., description="Pedidos that have at least one oferta"
+    )
     cobertura_ofertas_porcentaje: float = Field(
         ..., description="% of pedidos that have at least one oferta"
     )
-    total_ofertas: int
-    ofertas_aceptadas: int
-    ofertas_rechazadas: int
-    ofertas_pendientes: int
     tasa_aceptacion_porcentaje: float = Field(
         ..., description="% of ofertas that were accepted"
     )
@@ -117,13 +131,13 @@ class CommitmentMetrics(BaseModel):
         None, description="Average days from pedido creation to first oferta"
     )
     top_contribuidores: List[TopContribuidor] = Field(
-        [], description="Top 5 contributors by number of ofertas"
+        [], description="Top 5 contributors by acceptance rate"
     )
-    valor_total_solicitado: float = Field(
-        ..., description="Total monetary value requested (economico pedidos)"
+    pedidos_por_tipo: Dict[str, int] = Field(
+        ..., description="Distribution of pedidos by type (economico, materiales, etc)"
     )
-    valor_total_comprometido: float = Field(
-        ..., description="Total value of accepted ofertas"
+    cobertura_por_tipo: Dict[str, float] = Field(
+        ..., description="Coverage percentage for each pedido type"
     )
 
 
@@ -138,6 +152,9 @@ class PerformanceMetrics(BaseModel):
     tiempo_promedio_etapa_dias: Optional[float] = Field(
         None, description="Average duration of etapas in days"
     )
+    semanas_promedio_etapa: Optional[float] = Field(
+        None, description="Average duration of etapas in weeks"
+    )
     tiempo_inicio_promedio_dias: Optional[float] = Field(
         None,
         description="Average days from project creation to en_ejecucion transition",
@@ -145,10 +162,19 @@ class PerformanceMetrics(BaseModel):
     proyectos_pendientes_mas_30_dias: int = Field(
         ..., description="Projects stuck in pending (sin ejecución) for more than 30 days"
     )
-    observaciones_total: int
-    observaciones_resueltas: int
-    observaciones_pendientes: int
-    observaciones_vencidas: int
+    observaciones_total: int = Field(..., description="Total observations in the system")
+    observaciones_resueltas: int = Field(..., description="Resolved observations")
+    observaciones_pendientes: int = Field(..., description="Pending observations")
+    observaciones_vencidas: int = Field(..., description="Overdue observations")
     tiempo_resolucion_observaciones_promedio_dias: Optional[float] = Field(
         None, description="Average days to resolve an observacion"
+    )
+    tasa_cumplimiento_observaciones: float = Field(
+        ..., description="Percentage of observations that were resolved"
+    )
+    tiempo_respuesta_promedio_pedido_dias: Optional[float] = Field(
+        None, description="Average days from pedido creation to completion"
+    )
+    distribucion_pedidos_por_tipo: Dict[str, int] = Field(
+        ..., description="Count of pedidos by type"
     )

@@ -179,6 +179,7 @@ class EtapaService:
 
         # Transition to en_ejecucion
         db_etapa.estado = EstadoEtapa.en_ejecucion
+        db_etapa.fecha_en_ejecucion = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(db_etapa)
 

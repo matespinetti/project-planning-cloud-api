@@ -1,9 +1,10 @@
 """Pedido SQLAlchemy model."""
 
+from datetime import datetime
 from typing import TYPE_CHECKING, List, Optional
 from uuid import UUID, uuid4
 
-from sqlalchemy import Enum, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import DateTime, Enum, Float, ForeignKey, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -60,6 +61,24 @@ class Pedido(Base):
     # Quantity (for materiales, mano_obra, etc.)
     cantidad: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     unidad: Mapped[Optional[str]] = mapped_column(String(50), nullable=True)
+
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+    # State transition timestamps
+    fecha_comprometido: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fecha_completado: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     etapa: Mapped["Etapa"] = relationship(back_populates="pedidos")

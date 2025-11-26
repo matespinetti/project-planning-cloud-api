@@ -2,12 +2,12 @@
 Seed script for populating the database with consistent, realistic sample data.
 
 This script creates a complete test environment with:
-- 7 users (2 COUNCIL, 5 MEMBER/OFERENTES)
-- 4 projects with proper state consistency
-- 10 etapas with realistic timelines
-- 30+ pedidos covering all types
-- 60+ ofertas with proper state consistency
-- Observaciones for testing
+- 5 users (Bonita system + 2 COUNCIL + 2 MEMBER)
+- 3 FINALIZADO projects with realistic timelines
+- 5 etapas with proper state consistency
+- 9 pedidos (all COMPLETADO)
+- 9 ofertas (all aceptada)
+- 4 observaciones (RESUELTA/VENCIDA only)
 
 KEY BUSINESS RULE: Para que un Proyecto esté EN_EJECUCION, TODAS sus etapas
 deben estar financiadas (todos sus pedidos deben estar COMPLETADO).
@@ -58,7 +58,7 @@ async def clear_database(db: AsyncSession):
 
 
 async def create_users(db: AsyncSession) -> dict:
-    """Create users: 2 COUNCIL + 5 OFERENTES + Bonita integration account."""
+    """Create users: Bonita system + 2 COUNCIL + 2 MEMBER."""
     print("\n👥 Creating users...")
 
     users_list = []
@@ -98,8 +98,8 @@ async def create_users(db: AsyncSession) -> dict:
     )
     users_list.append(council2)
 
-    # ===== PROJECT EXECUTORS (MEMBER - Project Owners) =====
-    executor1 = User(
+    # ===== MEMBER USERS (Project Owners + Oferentes) =====
+    member1 = User(
         id=uuid4(),
         email="maria@barrionorte.org",
         password=get_password_hash("Password123"),
@@ -108,9 +108,9 @@ async def create_users(db: AsyncSession) -> dict:
         ong="Fundación Barrio Norte",
         role=UserRole.MEMBER,
     )
-    users_list.append(executor1)
+    users_list.append(member1)
 
-    executor2 = User(
+    member2 = User(
         id=uuid4(),
         email="pedro@desarrollo.org",
         password=get_password_hash("Password123"),
@@ -119,41 +119,7 @@ async def create_users(db: AsyncSession) -> dict:
         ong="ONG Desarrollo Comunitario",
         role=UserRole.MEMBER,
     )
-    users_list.append(executor2)
-
-    executor3 = User(
-        id=uuid4(),
-        email="lucia@soscomunitaria.org",
-        password=get_password_hash("Password123"),
-        nombre="Lucía",
-        apellido="Fernández",
-        ong="Asociación SOS Comunitaria",
-        role=UserRole.MEMBER,
-    )
-    users_list.append(executor3)
-
-    # ===== OFERENTES (MEMBER - Users who submit offers) =====
-    oferente1 = User(
-        id=uuid4(),
-        email="distribuidor@materiales.com",
-        password=get_password_hash("Password123"),
-        nombre="Juan",
-        apellido="Perez",
-        ong="Distribuidora de Materiales 2000",
-        role=UserRole.MEMBER,
-    )
-    users_list.append(oferente1)
-
-    oferente2 = User(
-        id=uuid4(),
-        email="empresa@construccion.com",
-        password=get_password_hash("Password123"),
-        nombre="Roberto",
-        apellido="Silva",
-        ong="Empresa Construcciones RS",
-        role=UserRole.MEMBER,
-    )
-    users_list.append(oferente2)
+    users_list.append(member2)
 
     # Add all users to database
     db.add_all(users_list)
@@ -167,62 +133,23 @@ async def create_users(db: AsyncSession) -> dict:
         "bonita_system_user": bonita_system_user,
         "council1": council1,
         "council2": council2,
-        "executor1": executor1,
-        "executor2": executor2,
-        "executor3": executor3,
-        "oferente1": oferente1,
-        "oferente2": oferente2,
+        "member1": member1,
+        "member2": member2,
     }
 
 
 async def create_projects(db: AsyncSession, users: dict) -> list:
-    """Create 4 projects with different states and consistency."""
+    """Create 3 FINALIZADO projects with realistic completion timelines."""
     print("\n📋 Creating projects...")
 
     projects = []
 
     # =========================================================================
-    # PROJECT 1: PENDIENTE - Searching for financing
+    # PROJECT A: FINALIZADO - Antiguo (4 meses atrás)
     # =========================================================================
-    p1 = Proyecto(
+    p_a = Proyecto(
         id=uuid4(),
-        user_id=users["executor1"].id,
-        titulo="Centro Comunitario Barrio Norte",
-        descripcion="Construcción de centro comunitario con salón multiuso, cocina comunitaria y área verde para 300 familias.",
-        tipo="Infraestructura Social",
-        pais="Argentina",
-        provincia="Buenos Aires",
-        ciudad="La Plata",
-        barrio="Barrio Norte",
-        estado=EstadoProyecto.pendiente,  # ✅ PENDIENTE
-    )
-    projects.append(p1)
-
-    # =========================================================================
-    # PROJECT 2: EN_EJECUCION - ALL STAGES FINANCED (key rule!)
-    # =========================================================================
-    p2 = Proyecto(
-        id=uuid4(),
-        user_id=users["executor2"].id,
-        titulo="Comedor Escolar Rosario Norte",
-        descripcion="Comedor para 200 niños con cocina industrial, comedor y depósito de alimentos.",
-        tipo="Infraestructura Social",
-        pais="Argentina",
-        provincia="Santa Fe",
-        ciudad="Rosario",
-        barrio="Norte",
-        estado=EstadoProyecto.en_ejecucion,  # ✅ EN_EJECUCION (todos pedidos completados)
-        bonita_case_id="CASE-2024-002",
-        bonita_process_instance_id=1002,
-    )
-    projects.append(p2)
-
-    # =========================================================================
-    # PROJECT 3: EN_EJECUCION - Alternative (fewer stages)
-    # =========================================================================
-    p3 = Proyecto(
-        id=uuid4(),
-        user_id=users["executor3"].id,
+        user_id=users["member1"].id,
         titulo="Huerta Orgánica Comunitaria",
         descripcion="Huerta comunitaria de 2000m² con sistema de riego, invernadero y herramientas.",
         tipo="Desarrollo Sustentable",
@@ -230,18 +157,39 @@ async def create_projects(db: AsyncSession, users: dict) -> list:
         provincia="Buenos Aires",
         ciudad="La Plata",
         barrio="Villa Elvira",
-        estado=EstadoProyecto.en_ejecucion,  # ✅ EN_EJECUCION
-        bonita_case_id="CASE-2024-003",
-        bonita_process_instance_id=1003,
+        estado=EstadoProyecto.finalizado,
+        created_at=datetime(2025, 7, 26, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 8, 20, tzinfo=timezone.utc),
+        fecha_finalizado=datetime(2025, 9, 10, tzinfo=timezone.utc),
     )
-    projects.append(p3)
+    projects.append(p_a)
 
     # =========================================================================
-    # PROJECT 4: FINALIZADO - Completed project (reference)
+    # PROJECT B: FINALIZADO - Completo (3 meses atrás)
     # =========================================================================
-    p4 = Proyecto(
+    p_b = Proyecto(
         id=uuid4(),
-        user_id=users["executor1"].id,
+        user_id=users["member2"].id,
+        titulo="Comedor Escolar Rosario Norte",
+        descripcion="Comedor para 200 niños con cocina industrial, comedor y depósito de alimentos.",
+        tipo="Infraestructura Social",
+        pais="Argentina",
+        provincia="Santa Fe",
+        ciudad="Rosario",
+        barrio="Norte",
+        estado=EstadoProyecto.finalizado,
+        created_at=datetime(2025, 8, 26, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 9, 15, tzinfo=timezone.utc),
+        fecha_finalizado=datetime(2025, 10, 15, tzinfo=timezone.utc),
+    )
+    projects.append(p_b)
+
+    # =========================================================================
+    # PROJECT C: FINALIZADO - Reciente (1 mes atrás)
+    # =========================================================================
+    p_c = Proyecto(
+        id=uuid4(),
+        user_id=users["member1"].id,
         titulo="Biblioteca Popular San Martín",
         descripcion="Renovación de biblioteca con 5000 libros, computadoras y conexión a internet.",
         tipo="Educación",
@@ -249,649 +197,394 @@ async def create_projects(db: AsyncSession, users: dict) -> list:
         provincia="Buenos Aires",
         ciudad="Mar del Plata",
         barrio="San Martín",
-        estado=EstadoProyecto.finalizado,  # ✅ FINALIZADO
+        estado=EstadoProyecto.finalizado,
+        created_at=datetime(2025, 10, 26, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 10, 28, tzinfo=timezone.utc),
+        fecha_finalizado=datetime(2025, 11, 15, tzinfo=timezone.utc),
     )
-    projects.append(p4)
+    projects.append(p_c)
 
     db.add_all(projects)
     await db.commit()
 
-    print(f"✅ Created {len(projects)} projects")
+    print(f"✅ Created {len(projects)} FINALIZADO projects with realistic timelines")
     return projects
 
 
 async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users: dict):
-    """Create etapas, pedidos and ofertas with strict consistency."""
+    """Create etapas, pedidos and ofertas for 3 FINALIZADO projects with realistic timestamps."""
     print("\n📅 Creating etapas, pedidos and ofertas...")
 
+    all_etapas = []
+    all_pedidos = []
+    all_ofertas = []
+
     # =========================================================================
-    # PROJECT 1: PENDIENTE - Searching for financing
+    # PROJECT A: FINALIZADO - Antiguo (4 meses atrás)
+    # Huerta Orgánica - 1 etapa, 2 pedidos
     # =========================================================================
-    p1 = next(p for p in projects if "Centro Comunitario" in p.titulo)
+    p_a = next(p for p in projects if "Huerta Orgánica" in p.titulo)
 
-    # Etapa 1: PENDIENTE (mix of states: has PENDING pedidos)
-    etapa1_1 = Etapa(
+    etapa_a_1 = Etapa(
         id=uuid4(),
-        proyecto_id=p1.id,
-        nombre="Fundaciones y Estructura",
-        descripcion="Excavación, cimientos y estructura de hormigón armado",
-        fecha_inicio=date(2025, 2, 1),
-        fecha_fin=date(2025, 4, 30),
-        estado=EstadoEtapa.pendiente,  # ✅ PENDIENTE (tiene pedidos no completados)
+        proyecto_id=p_a.id,
+        nombre="Preparación y Construcción",
+        descripcion="Preparación del terreno y construcción de camas de cultivo",
+        fecha_inicio=date(2025, 7, 26),
+        fecha_fin=date(2025, 8, 31),
+        estado=EstadoEtapa.completada,
+        created_at=datetime(2025, 7, 26, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 7, 28, tzinfo=timezone.utc),
+        fecha_financiada=datetime(2025, 8, 5, tzinfo=timezone.utc),
     )
 
-    # Pedido 1: COMPLETADO (has accepted offer)
-    ped1_1_1 = Pedido(
+    ped_a_1_1 = Pedido(
         id=uuid4(),
-        etapa_id=etapa1_1.id,
-        tipo=TipoPedido.ECONOMICO,
-        descripcion="Cemento, hierro, arena y piedra",
-        estado=EstadoPedido.COMPLETADO,
-        monto=180000.0,
-        moneda="ARS",
-    )
-
-    # Pedido 2: COMPROMETIDO (has accepted offer, waiting confirmation)
-    ped1_1_2 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa1_1.id,
-        tipo=TipoPedido.MANO_OBRA,
-        descripcion="Albañiles especializados en fundaciones (3 meses)",
-        estado=EstadoPedido.COMPROMETIDO,
-        cantidad=6,
-        unidad="trabajadores",
-    )
-
-    # Pedido 3: PENDIENTE (multiple pending offers)
-    ped1_1_3 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa1_1.id,
-        tipo=TipoPedido.EQUIPAMIENTO,
-        descripcion="Herramientas y maquinaria para excavación",
-        estado=EstadoPedido.PENDIENTE,
-        cantidad=1,
-        unidad="set completo",
-    )
-
-    # Etapa 2: PENDIENTE
-    etapa1_2 = Etapa(
-        id=uuid4(),
-        proyecto_id=p1.id,
-        nombre="Construcción de Paredes y Techo",
-        descripcion="Levantamiento de paredes, instalación de techo y aberturas",
-        fecha_inicio=date(2025, 5, 1),
-        fecha_fin=date(2025, 7, 31),
-        estado=EstadoEtapa.pendiente,  # ✅ PENDIENTE
-    )
-
-    ped1_2_1 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa1_2.id,
+        etapa_id=etapa_a_1.id,
         tipo=TipoPedido.MATERIALES,
-        descripcion="Ladrillos cerámicos huecos 18x19x33",
-        estado=EstadoPedido.PENDIENTE,
-        cantidad=20000,
-        unidad="ladrillos",
+        descripcion="Madera, tierra y abono de calidad",
+        estado=EstadoPedido.COMPLETADO,
+        cantidad=3000,
+        unidad="kg",
+        created_at=datetime(2025, 7, 27, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 7, 29, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 8, 3, tzinfo=timezone.utc),
     )
 
-    db.add_all([etapa1_1, etapa1_2, ped1_1_1, ped1_1_2, ped1_1_3, ped1_2_1])
+    ped_a_1_2 = Pedido(
+        id=uuid4(),
+        etapa_id=etapa_a_1.id,
+        tipo=TipoPedido.MANO_OBRA,
+        descripcion="Operarios para construcción",
+        estado=EstadoPedido.COMPLETADO,
+        cantidad=2,
+        unidad="trabajadores",
+        created_at=datetime(2025, 7, 27, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 7, 30, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 8, 4, tzinfo=timezone.utc),
+    )
 
-    # Create ofertas for Project 1
-    ofertas_p1 = [
-        # ped1_1_1: COMPLETADO → 1 accepted offer
+    all_etapas.extend([etapa_a_1])
+    all_pedidos.extend([ped_a_1_1, ped_a_1_2])
+
+    ofertas_a = [
         Oferta(
             id=uuid4(),
-            pedido_id=ped1_1_1.id,
-            user_id=users["oferente1"].id,
-            monto_ofrecido=175000.0,
+            pedido_id=ped_a_1_1.id,
+            user_id=users["member2"].id,
             estado=EstadoOferta.aceptada,
-            descripcion="Todos los materiales con certificación de calidad",
+            descripcion="Materiales de huerta de calidad premium",
         ),
-        # ped1_1_2: COMPROMETIDO → 1 accepted offer
         Oferta(
             id=uuid4(),
-            pedido_id=ped1_1_2.id,
-            user_id=users["oferente1"].id,
+            pedido_id=ped_a_1_2.id,
+            user_id=users["member1"].id,
             estado=EstadoOferta.aceptada,
-            descripcion="Equipo de 6 albañiles especializados",
-        ),
-        # ped1_1_3: PENDIENTE → 2 pending offers
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped1_1_3.id,
-            user_id=users["oferente1"].id,
-            estado=EstadoOferta.pendiente,
-            descripcion="Set de herramientas profesionales",
-        ),
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped1_1_3.id,
-            user_id=users["oferente2"].id,
-            estado=EstadoOferta.pendiente,
-            descripcion="Equipamiento alternativo con minicargadora",
-        ),
-        # ped1_2_1: PENDIENTE → 2 pending offers
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped1_2_1.id,
-            user_id=users["oferente2"].id,
-            estado=EstadoOferta.pendiente,
-            descripcion="20,000 ladrillos de primera calidad",
-        ),
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped1_2_1.id,
-            user_id=users["oferente1"].id,
-            estado=EstadoOferta.pendiente,
-            descripcion="Ladrillos cerámicos con entrega escalonada",
+            descripcion="Equipo de 2 operarios especializados",
         ),
     ]
-    db.add_all(ofertas_p1)
+    all_ofertas.extend(ofertas_a)
 
     # =========================================================================
-    # PROJECT 2: EN_EJECUCION - ALL stages financed (STRICT RULE)
+    # PROJECT B: FINALIZADO - Completo (3 meses atrás)
+    # Comedor Escolar - 2 etapas, 4 pedidos
     # =========================================================================
-    p2 = next(p for p in projects if "Comedor Escolar" in p.titulo)
+    p_b = next(p for p in projects if "Comedor Escolar" in p.titulo)
 
-    # Etapa 1: COMPLETADA (all pedidos COMPLETADO)
-    etapa2_1 = Etapa(
+    etapa_b_1 = Etapa(
         id=uuid4(),
-        proyecto_id=p2.id,
+        proyecto_id=p_b.id,
         nombre="Infraestructura Base",
         descripcion="Preparación del terreno y cimientos",
-        fecha_inicio=date(2024, 8, 1),
-        fecha_fin=date(2024, 9, 30),
-        estado=EstadoEtapa.completada,  # ✅ COMPLETADA (todos COMPLETADO)
+        fecha_inicio=date(2025, 8, 26),
+        fecha_fin=date(2025, 9, 30),
+        estado=EstadoEtapa.completada,
+        created_at=datetime(2025, 8, 26, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 8, 28, tzinfo=timezone.utc),
+        fecha_financiada=datetime(2025, 9, 5, tzinfo=timezone.utc),
     )
 
-    ped2_1_1 = Pedido(
+    ped_b_1_1 = Pedido(
         id=uuid4(),
-        etapa_id=etapa2_1.id,
+        etapa_id=etapa_b_1.id,
         tipo=TipoPedido.ECONOMICO,
         descripcion="Materiales de cimentación",
         estado=EstadoPedido.COMPLETADO,
         monto=150000.0,
         moneda="ARS",
+        created_at=datetime(2025, 8, 27, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 8, 29, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 9, 3, tzinfo=timezone.utc),
     )
 
-    ped2_1_2 = Pedido(
+    ped_b_1_2 = Pedido(
         id=uuid4(),
-        etapa_id=etapa2_1.id,
+        etapa_id=etapa_b_1.id,
         tipo=TipoPedido.MANO_OBRA,
         descripcion="Obreros especializados",
         estado=EstadoPedido.COMPLETADO,
-        cantidad=5,
+        cantidad=4,
         unidad="trabajadores",
+        created_at=datetime(2025, 8, 27, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 8, 30, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 9, 4, tzinfo=timezone.utc),
     )
 
-    # Etapa 2: EN_EJECUCION (all pedidos COMPLETADO - currently executing)
-    etapa2_2 = Etapa(
+    etapa_b_2 = Etapa(
         id=uuid4(),
-        proyecto_id=p2.id,
+        proyecto_id=p_b.id,
         nombre="Construcción y Equipamiento",
         descripcion="Construcción del comedor e instalación de equipos",
-        fecha_inicio=date(2024, 10, 1),
-        fecha_fin=date(2024, 12, 31),
-        estado=EstadoEtapa.en_ejecucion,  # ✅ EN_EJECUCION (todos COMPLETADO)
+        fecha_inicio=date(2025, 10, 1),
+        fecha_fin=date(2025, 10, 30),
+        estado=EstadoEtapa.completada,
+        created_at=datetime(2025, 9, 1, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 10, 1, tzinfo=timezone.utc),
+        fecha_financiada=datetime(2025, 10, 8, tzinfo=timezone.utc),
     )
 
-    ped2_2_1 = Pedido(
+    ped_b_2_1 = Pedido(
         id=uuid4(),
-        etapa_id=etapa2_2.id,
+        etapa_id=etapa_b_2.id,
         tipo=TipoPedido.MATERIALES,
         descripcion="Materiales de construcción",
         estado=EstadoPedido.COMPLETADO,
         cantidad=5000,
         unidad="kg",
+        created_at=datetime(2025, 9, 2, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 9, 4, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 10, 3, tzinfo=timezone.utc),
     )
 
-    ped2_2_2 = Pedido(
+    ped_b_2_2 = Pedido(
         id=uuid4(),
-        etapa_id=etapa2_2.id,
+        etapa_id=etapa_b_2.id,
         tipo=TipoPedido.EQUIPAMIENTO,
         descripcion="Cocina industrial y equipamiento",
         estado=EstadoPedido.COMPLETADO,
         monto=200000.0,
         moneda="ARS",
+        created_at=datetime(2025, 9, 2, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 9, 5, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 10, 5, tzinfo=timezone.utc),
     )
 
-    # Etapa 3: FINANCIADA (all pedidos COMPLETADO - ready to start)
-    etapa2_3 = Etapa(
-        id=uuid4(),
-        proyecto_id=p2.id,
-        nombre="Instalaciones y Detalles",
-        descripcion="Instalaciones eléctricas, sanitarias y finalizaciones",
-        fecha_inicio=date(2025, 1, 1),
-        fecha_fin=date(2025, 2, 28),
-        estado=EstadoEtapa.financiada,  # ✅ FINANCIADA (todos COMPLETADO)
-    )
+    all_etapas.extend([etapa_b_1, etapa_b_2])
+    all_pedidos.extend([ped_b_1_1, ped_b_1_2, ped_b_2_1, ped_b_2_2])
 
-    ped2_3_1 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa2_3.id,
-        tipo=TipoPedido.ECONOMICO,
-        descripcion="Instalación eléctrica y sanitaria",
-        estado=EstadoPedido.COMPLETADO,
-        monto=120000.0,
-        moneda="ARS",
-    )
-
-    ped2_3_2 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa2_3.id,
-        tipo=TipoPedido.MATERIALES,
-        descripcion="Cerámicos y acabados",
-        estado=EstadoPedido.COMPLETADO,
-        cantidad=200,
-        unidad="m²",
-    )
-
-    db.add_all([etapa2_1, etapa2_2, etapa2_3])
-    db.add_all([ped2_1_1, ped2_1_2, ped2_2_1, ped2_2_2, ped2_3_1, ped2_3_2])
-
-    # Create ofertas for Project 2 (all pedidos have accepted offers)
-    ofertas_p2 = [
-        # Etapa 1 - COMPLETADA
+    ofertas_b = [
         Oferta(
             id=uuid4(),
-            pedido_id=ped2_1_1.id,
-            user_id=users["oferente1"].id,
+            pedido_id=ped_b_1_1.id,
+            user_id=users["member1"].id,
             monto_ofrecido=145000.0,
             estado=EstadoOferta.aceptada,
             descripcion="Materiales de cimentación de calidad",
         ),
         Oferta(
             id=uuid4(),
-            pedido_id=ped2_1_2.id,
-            user_id=users["oferente2"].id,
+            pedido_id=ped_b_1_2.id,
+            user_id=users["member2"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Equipo de obreros experimentados",
         ),
-        # Etapa 2 - EN_EJECUCION
         Oferta(
             id=uuid4(),
-            pedido_id=ped2_2_1.id,
-            user_id=users["oferente1"].id,
+            pedido_id=ped_b_2_1.id,
+            user_id=users["member1"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Materiales de construcción certificados",
         ),
         Oferta(
             id=uuid4(),
-            pedido_id=ped2_2_2.id,
-            user_id=users["oferente2"].id,
+            pedido_id=ped_b_2_2.id,
+            user_id=users["member2"].id,
             monto_ofrecido=195000.0,
             estado=EstadoOferta.aceptada,
             descripcion="Cocina industrial con instalación",
         ),
-        # Etapa 3 - FINANCIADA
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped2_3_1.id,
-            user_id=users["oferente1"].id,
-            monto_ofrecido=115000.0,
-            estado=EstadoOferta.aceptada,
-            descripcion="Instalaciones completas",
-        ),
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped2_3_2.id,
-            user_id=users["oferente2"].id,
-            estado=EstadoOferta.aceptada,
-            descripcion="Cerámicos y acabados premium",
-        ),
     ]
-    db.add_all(ofertas_p2)
+    all_ofertas.extend(ofertas_b)
 
     # =========================================================================
-    # PROJECT 3: EN_EJECUCION - Alternative (smaller)
+    # PROJECT C: FINALIZADO - Reciente (1 mes atrás)
+    # Biblioteca Popular - 2 etapas, 3 pedidos
     # =========================================================================
-    p3 = next(p for p in projects if "Huerta Orgánica" in p.titulo)
+    p_c = next(p for p in projects if "Biblioteca" in p.titulo)
 
-    # Etapa 1: COMPLETADA
-    etapa3_1 = Etapa(
+    etapa_c_1 = Etapa(
         id=uuid4(),
-        proyecto_id=p3.id,
-        nombre="Preparación y Construcción",
-        descripcion="Preparación del terreno y construcción de camas",
-        fecha_inicio=date(2024, 9, 1),
-        fecha_fin=date(2024, 10, 31),
-        estado=EstadoEtapa.completada,  # ✅ COMPLETADA
-    )
-
-    ped3_1_1 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa3_1.id,
-        tipo=TipoPedido.MATERIALES,
-        descripcion="Madera, tierra y abono",
-        estado=EstadoPedido.COMPLETADO,
-        cantidad=3000,
-        unidad="kg",
-    )
-
-    ped3_1_2 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa3_1.id,
-        tipo=TipoPedido.MANO_OBRA,
-        descripcion="Operarios para construcción",
-        estado=EstadoPedido.COMPLETADO,
-        cantidad=3,
-        unidad="trabajadores",
-    )
-
-    # Etapa 2: FINANCIADA
-    etapa3_2 = Etapa(
-        id=uuid4(),
-        proyecto_id=p3.id,
-        nombre="Instalación de Riego y Invernadero",
-        descripcion="Instalación del sistema de riego y construcción del invernadero",
-        fecha_inicio=date(2024, 11, 1),
-        fecha_fin=date(2024, 12, 31),
-        estado=EstadoEtapa.financiada,  # ✅ FINANCIADA
-    )
-
-    ped3_2_1 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa3_2.id,
-        tipo=TipoPedido.EQUIPAMIENTO,
-        descripcion="Sistema de riego por goteo",
-        estado=EstadoPedido.COMPLETADO,
-        monto=80000.0,
-        moneda="ARS",
-    )
-
-    ped3_2_2 = Pedido(
-        id=uuid4(),
-        etapa_id=etapa3_2.id,
-        tipo=TipoPedido.MATERIALES,
-        descripcion="Materiales para invernadero",
-        estado=EstadoPedido.COMPLETADO,
-        cantidad=500,
-        unidad="m²",
-    )
-
-    db.add_all([etapa3_1, etapa3_2])
-    db.add_all([ped3_1_1, ped3_1_2, ped3_2_1, ped3_2_2])
-
-    # Create ofertas for Project 3
-    ofertas_p3 = [
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped3_1_1.id,
-            user_id=users["oferente1"].id,
-            estado=EstadoOferta.aceptada,
-            descripcion="Materiales de huerta de calidad",
-        ),
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped3_1_2.id,
-            user_id=users["oferente2"].id,
-            estado=EstadoOferta.aceptada,
-            descripcion="Equipo de operarios especializados",
-        ),
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped3_2_1.id,
-            user_id=users["oferente1"].id,
-            monto_ofrecido=78000.0,
-            estado=EstadoOferta.aceptada,
-            descripcion="Sistema de riego profesional",
-        ),
-        Oferta(
-            id=uuid4(),
-            pedido_id=ped3_2_2.id,
-            user_id=users["oferente2"].id,
-            estado=EstadoOferta.aceptada,
-            descripcion="Materiales para invernadero resistente",
-        ),
-    ]
-    db.add_all(ofertas_p3)
-
-    # =========================================================================
-    # PROJECT 4: FINALIZADO - Reference completed project
-    # =========================================================================
-    p4 = next(p for p in projects if "Biblioteca" in p.titulo)
-
-    # Etapa 1: COMPLETADA
-    etapa4_1 = Etapa(
-        id=uuid4(),
-        proyecto_id=p4.id,
+        proyecto_id=p_c.id,
         nombre="Renovación Estructural",
         descripcion="Renovación de estructura y reparaciones",
-        fecha_inicio=date(2023, 6, 1),
-        fecha_fin=date(2023, 8, 31),
-        estado=EstadoEtapa.completada,  # ✅ COMPLETADA
+        fecha_inicio=date(2025, 10, 26),
+        fecha_fin=date(2025, 11, 5),
+        estado=EstadoEtapa.completada,
+        created_at=datetime(2025, 10, 26, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 10, 27, tzinfo=timezone.utc),
+        fecha_financiada=datetime(2025, 10, 30, tzinfo=timezone.utc),
     )
 
-    ped4_1_1 = Pedido(
+    ped_c_1_1 = Pedido(
         id=uuid4(),
-        etapa_id=etapa4_1.id,
+        etapa_id=etapa_c_1.id,
         tipo=TipoPedido.ECONOMICO,
         descripcion="Reparaciones estructurales",
         estado=EstadoPedido.COMPLETADO,
         monto=100000.0,
         moneda="ARS",
+        created_at=datetime(2025, 10, 27, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 10, 28, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 11, 1, tzinfo=timezone.utc),
     )
 
-    # Etapa 2: COMPLETADA
-    etapa4_2 = Etapa(
+    etapa_c_2 = Etapa(
         id=uuid4(),
-        proyecto_id=p4.id,
+        proyecto_id=p_c.id,
         nombre="Equipamiento y Libros",
         descripcion="Instalación de computadoras y adquisición de libros",
-        fecha_inicio=date(2023, 9, 1),
-        fecha_fin=date(2023, 11, 30),
-        estado=EstadoEtapa.completada,  # ✅ COMPLETADA
+        fecha_inicio=date(2025, 11, 6),
+        fecha_fin=date(2025, 11, 15),
+        estado=EstadoEtapa.completada,
+        created_at=datetime(2025, 10, 26, tzinfo=timezone.utc),
+        fecha_en_ejecucion=datetime(2025, 11, 6, tzinfo=timezone.utc),
+        fecha_financiada=datetime(2025, 11, 10, tzinfo=timezone.utc),
     )
 
-    ped4_2_1 = Pedido(
+    ped_c_2_1 = Pedido(
         id=uuid4(),
-        etapa_id=etapa4_2.id,
+        etapa_id=etapa_c_2.id,
         tipo=TipoPedido.EQUIPAMIENTO,
         descripcion="Computadoras e instalación",
         estado=EstadoPedido.COMPLETADO,
-        cantidad=20,
+        cantidad=15,
         unidad="computadoras",
+        created_at=datetime(2025, 10, 28, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 10, 30, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 11, 8, tzinfo=timezone.utc),
     )
 
-    ped4_2_2 = Pedido(
+    ped_c_2_2 = Pedido(
         id=uuid4(),
-        etapa_id=etapa4_2.id,
+        etapa_id=etapa_c_2.id,
         tipo=TipoPedido.MATERIALES,
-        descripcion="5000 libros variados",
+        descripcion="4500 libros variados",
         estado=EstadoPedido.COMPLETADO,
-        cantidad=5000,
+        cantidad=4500,
         unidad="libros",
+        created_at=datetime(2025, 10, 28, tzinfo=timezone.utc),
+        fecha_comprometido=datetime(2025, 10, 31, tzinfo=timezone.utc),
+        fecha_completado=datetime(2025, 11, 12, tzinfo=timezone.utc),
     )
 
-    db.add_all([etapa4_1, etapa4_2])
-    db.add_all([ped4_1_1, ped4_2_1, ped4_2_2])
+    all_etapas.extend([etapa_c_1, etapa_c_2])
+    all_pedidos.extend([ped_c_1_1, ped_c_2_1, ped_c_2_2])
 
-    # Create ofertas for Project 4
-    ofertas_p4 = [
+    ofertas_c = [
         Oferta(
             id=uuid4(),
-            pedido_id=ped4_1_1.id,
-            user_id=users["oferente1"].id,
+            pedido_id=ped_c_1_1.id,
+            user_id=users["member2"].id,
             monto_ofrecido=98000.0,
             estado=EstadoOferta.aceptada,
             descripcion="Reparaciones de calidad",
         ),
         Oferta(
             id=uuid4(),
-            pedido_id=ped4_2_1.id,
-            user_id=users["oferente2"].id,
+            pedido_id=ped_c_2_1.id,
+            user_id=users["member1"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Computadoras e instalación profesional",
         ),
         Oferta(
             id=uuid4(),
-            pedido_id=ped4_2_2.id,
-            user_id=users["oferente1"].id,
+            pedido_id=ped_c_2_2.id,
+            user_id=users["member2"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Colección diversa de libros",
         ),
     ]
-    db.add_all(ofertas_p4)
+    all_ofertas.extend(ofertas_c)
 
+    # Add all to database
+    db.add_all(all_etapas)
+    db.add_all(all_pedidos)
+    db.add_all(all_ofertas)
     await db.commit()
-    print(
-        f"✅ Created 4 etapas with 11 pedidos and 19 ofertas (all consistent)"
-    )
+
+    print(f"✅ Created {len(all_etapas)} etapas with {len(all_pedidos)} pedidos and {len(all_ofertas)} ofertas")
 
 
 async def create_observaciones(db: AsyncSession, projects: list, users: dict):
-    """Create sample observaciones for testing."""
+    """Create RESOLVED and EXPIRED observaciones only (no pending)."""
     print("\n📝 Creating observaciones...")
 
-    # Only projects EN_EJECUCION can have observaciones
-    p2 = next(p for p in projects if "Comedor Escolar" in p.titulo)
-    p3 = next(p for p in projects if "Huerta Orgánica" in p.titulo)
+    # Projects for observaciones
+    p_b = next(p for p in projects if "Comedor Escolar" in p.titulo)
+    p_c = next(p for p in projects if "Biblioteca" in p.titulo)
 
-    today = date.today()
     observaciones = [
-        # Observación pendiente
+        # RESUELTA - from Project B (Comedor)
+        # Created 2025-09-10, vence en 5 días (2025-09-15), resuelto en 2 días (2025-09-12)
         Observacion(
             id=uuid4(),
-            proyecto_id=p2.id,
+            proyecto_id=p_b.id,
             council_user_id=users["council1"].id,
             descripcion="Verificar que los materiales utilizados cumplan con las normas de construcción establecidas. Se solicita certificado de conformidad.",
-            estado=EstadoObservacion.pendiente,
-            fecha_limite=today + timedelta(days=3),
-        ),
-        # Observación resuelta
-        Observacion(
-            id=uuid4(),
-            proyecto_id=p2.id,
-            council_user_id=users["council2"].id,
-            descripcion="Documentación de avance debe ser presentada semanalmente.",
             estado=EstadoObservacion.resuelta,
-            fecha_limite=today - timedelta(days=5),
-            respuesta="Se ha establecido un sistema de reportes semanales en plataforma",
-            fecha_resolucion=today - timedelta(days=2),
+            fecha_limite=date(2025, 9, 15),
+            respuesta="Certificado de conformidad recibido y aprobado. Todos los materiales cumplen con las normas vigentes.",
+            created_at=datetime(2025, 9, 10, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 9, 12, tzinfo=timezone.utc),
         ),
-        # Observación vencida
+        # RESUELTA - from Project B (Comedor)
+        # Created 2025-09-15, vence en 5 días (2025-09-20), resuelto en 3 días (2025-09-18)
         Observacion(
             id=uuid4(),
-            proyecto_id=p3.id,
+            proyecto_id=p_b.id,
+            council_user_id=users["council2"].id,
+            descripcion="Documentación de avance debe ser presentada semanalmente en la plataforma.",
+            estado=EstadoObservacion.resuelta,
+            fecha_limite=date(2025, 9, 20),
+            respuesta="Se ha establecido un sistema de reportes semanales automáticos en la plataforma.",
+            created_at=datetime(2025, 9, 15, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 9, 18, tzinfo=timezone.utc),
+        ),
+        # RESUELTA - from Project C (Biblioteca)
+        # Created 2025-11-06, vence en 5 días (2025-11-11), resuelto en 3 días (2025-11-09)
+        Observacion(
+            id=uuid4(),
+            proyecto_id=p_c.id,
             council_user_id=users["council1"].id,
-            descripcion="Se requiere aprobación de diseño del invernadero antes de construcción",
+            descripcion="Se requiere inspección final de seguridad antes de inauguración.",
+            estado=EstadoObservacion.resuelta,
+            fecha_limite=date(2025, 11, 11),
+            respuesta="Inspección de seguridad completada exitosamente. Todas las normas de seguridad cumplidas.",
+            created_at=datetime(2025, 11, 6, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 11, 9, tzinfo=timezone.utc),
+        ),
+        # VENCIDA - from Project C (Biblioteca)
+        # Created 2025-11-08, vence en 5 días (2025-11-13), pero no se resolvió (vencida)
+        Observacion(
+            id=uuid4(),
+            proyecto_id=p_c.id,
+            council_user_id=users["council2"].id,
+            descripcion="Aplicar etiquetado de libros según norma de biblioteca.",
             estado=EstadoObservacion.vencida,
-            fecha_limite=today - timedelta(days=10),
+            fecha_limite=date(2025, 11, 13),
+            created_at=datetime(2025, 11, 8, tzinfo=timezone.utc),
         ),
     ]
 
     db.add_all(observaciones)
     await db.commit()
-    print(f"✅ Created {len(observaciones)} observaciones")
-
-
-async def create_api_level_test_data(db: AsyncSession, users: dict):
-    """Create a scenario entirely through service calls for end-to-end testing."""
-    print("\n🚀 Creating API-level test scenario (Proyecto + ofertas)...")
-
-    owner = users["executor1"]
-    oferente_a = users["oferente1"]
-    oferente_b = users["oferente2"]
-
-    proyecto_payload = ProyectoCreate(
-        titulo="Proyecto Integrado con Bonita",
-        descripcion=(
-            "Proyecto generado a través del servicio para validar integraciones con Bonita "
-            "y probar el flujo de aceptación de ofertas."
-        ),
-        tipo="Infraestructura Social",
-        pais="Argentina",
-        provincia="Buenos Aires",
-        ciudad="Quilmes",
-        barrio="La Rivera",
-        bonita_case_id="BONITA-CASE-SEED-001",
-        bonita_process_instance_id=5100,
-        etapas=[
-            EtapaCreate(
-                nombre="Etapa Inicial",
-                descripcion="Etapa creada vía servicios para pruebas",
-                fecha_inicio="2025-01-10",
-                fecha_fin="2025-03-31",
-                pedidos=[
-                    PedidoCreate(
-                        tipo="economico",
-                        descripcion="Financiamiento de materiales básicos",
-                        monto=85000,
-                        moneda="ARS",
-                    ),
-                    PedidoCreate(
-                        tipo="materiales",
-                        descripcion="Ladrillos y acero de refuerzo",
-                        cantidad=5000,
-                        unidad="unidades",
-                    ),
-                ],
-            )
-        ],
-    )
-
-    proyecto = await ProyectoService.create(db, proyecto_payload, owner)
-    proyecto_full = await ProyectoService.get_by_id(db, proyecto.id)
-    etapa = proyecto_full.etapas[0]
-    pedido_financiamiento = etapa.pedidos[0]
-    pedido_materiales = etapa.pedidos[1]
-
-    # Create ofertas via service for first pedido and accept one to mark compromiso
-    oferta_fin_a = await OfertaService.create(
-        db,
-        pedido_financiamiento.id,
-        OfertaCreate(
-            descripcion="Financio el 100% del pedido con desembolso inmediato",
-            monto_ofrecido=84000,
-        ),
-        oferente_a,
-    )
-    await OfertaService.create(
-        db,
-        pedido_financiamiento.id,
-        OfertaCreate(
-            descripcion="Alternativa en dos pagos iguales (30/60 días)",
-            monto_ofrecido=85000,
-        ),
-        oferente_b,
-    )
-
-    accepted_oferta = await OfertaService.accept(db, oferta_fin_a.id, owner)
-
-    # Pedido materiales: keep offers pending for manual acceptance tests
-    pending_oferta_a = await OfertaService.create(
-        db,
-        pedido_materiales.id,
-        OfertaCreate(
-            descripcion="Proveo ladrillos de primera calidad",
-            monto_ofrecido=None,
-        ),
-        oferente_a,
-    )
-    pending_oferta_b = await OfertaService.create(
-        db,
-        pedido_materiales.id,
-        OfertaCreate(
-            descripcion="Incluye acero extra y logística",
-            monto_ofrecido=None,
-        ),
-        oferente_b,
-    )
-
-    print("✅ API-level scenario ready:")
-    print(f"   • Proyecto: {proyecto.id}")
-    print(f"   • Etapa: {etapa.id}")
-    print(f"   • Pedido COMPROMETIDO: {pedido_financiamiento.id}")
-    print(f"     - Oferta aceptada: {accepted_oferta.id}")
-    print(f"   • Pedido PENDIENTE (para pruebas): {pedido_materiales.id}")
-    print(f"     - Ofertas pendientes: {pending_oferta_a.id}, {pending_oferta_b.id}")
-    print("   • Bonita case id configurado: BONITA-CASE-SEED-001")
+    print(f"✅ Created {len(observaciones)} observaciones (all RESUELTA or VENCIDA)")
 
 
 async def seed_database():
     """Main seed function."""
     print("=" * 70)
-    print("🌱 SEEDING DATABASE WITH CONSISTENT DATA")
+    print("🌱 SEEDING DATABASE WITH CONSISTENT FINALIZADO DATA")
     print("=" * 70)
 
     async with AsyncSessionLocal() as db:
@@ -900,28 +593,31 @@ async def seed_database():
         projects = await create_projects(db, users)
         await create_etapas_pedidos_ofertas(db, projects, users)
         await create_observaciones(db, projects, users)
-        await create_api_level_test_data(db, users)
 
     print("\n" + "=" * 70)
     print("✅ DATABASE SEEDING COMPLETED SUCCESSFULLY")
     print("=" * 70)
     print("\n📊 Summary of Created Data:")
-    print("  • 7 users (2 COUNCIL + 5 MEMBERS/OFERENTES)")
-    print("  • 5 projects total:")
-    print("    - 1 PENDIENTE (searching for financing)")
-    print("    - 2 EN_EJECUCION (all stages financed)")
-    print("    - 1 FINALIZADO (completed reference)")
-    print("    - 1 creado vía servicios (con Bonita Case y ofertas listas para testing)")
-    print("  • 9 etapas (including service-generated scenario)")
-    print("  • 13 pedidos en total")
-    print("  • 23 ofertas (incluyendo las creadas vía servicios)")
-    print("  • 3 observaciones")
-    print("\n✨ Key Features:")
-    print("  ✅ All pedido states match their etapa states")
-    print("  ✅ EN_EJECUCION projects have ALL stages financed")
-    print("  ✅ COMPLETADO/COMPROMETIDO pedidos have accepted offers")
-    print("  ✅ PENDIENTE pedidos have multiple pending offers")
-    print("  ✅ No inconsistencies or state violations")
+    print("  • 5 users (1 Bonita system + 2 COUNCIL + 2 MEMBER)")
+    print("  • 3 FINALIZADO projects with realistic timelines:")
+    print("    - Huerta Orgánica (owner: member1, antiguo - 4 meses)")
+    print("    - Comedor Escolar (owner: member2, completo - 3 meses)")
+    print("    - Biblioteca Popular (owner: member1, reciente - 1 mes)")
+    print("  • 5 etapas with all timestamps set")
+    print("  • 9 pedidos (all COMPLETADO with fecha_comprometido & fecha_completado)")
+    print("  • 9 ofertas (all aceptada, distributed between member1 & member2)")
+    print("  • 4 observaciones (3 RESUELTA + 1 VENCIDA, no PENDIENTE)")
+    print("\n✨ Key Features for Metrics:")
+    print("  ✅ All timestamps properly set for metric calculations")
+    print("  ✅ Complete pedido lifecycle (created → comprometido → completado)")
+    print("  ✅ Complete etapa lifecycle with estado transitions")
+    print("  ✅ Complete proyecto lifecycle with fecha_en_ejecucion & fecha_finalizado")
+    print("  ✅ Both MEMBER users active as project owners and oferentes")
+    print("  ✅ Metrics will show non-null values for:")
+    print("     - tiempo_inicio_promedio_dias")
+    print("     - tiempo_resolucion_observaciones_promedio_dias")
+    print("     - tiempo_promedio_etapa_dias")
+    print("     - All performance metrics properly calculated")
     print("\n" + "=" * 70)
 
 

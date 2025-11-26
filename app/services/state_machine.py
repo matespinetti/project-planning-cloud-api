@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import List
 
 from app.models.etapa import Etapa, EstadoEtapa
@@ -62,9 +63,12 @@ def refresh_etapa_state(etapa: Etapa) -> EstadoEtapa:
     # Auto-calculate state based on pedidos (only for pendiente/financiada)
     if etapa_all_pedidos_financed(etapa):
         etapa.estado = EstadoEtapa.financiada
+        etapa.fecha_financiada = datetime.now(timezone.utc)
     else:
         etapa.estado = EstadoEtapa.pendiente
         # Clear completion timestamp if reverting to pendiente
         etapa.fecha_completitud = None
+        # Clear financiada timestamp if reverting to pendiente
+        etapa.fecha_financiada = None
 
     return etapa.estado

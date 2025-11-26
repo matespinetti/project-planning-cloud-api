@@ -1,6 +1,7 @@
 """Pedido service - Business logic for pedido operations."""
 
 import logging
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
@@ -261,6 +262,7 @@ class PedidoService:
             )
 
         pedido.estado = EstadoPedido.COMPROMETIDO
+        pedido.fecha_comprometido = datetime.now(timezone.utc)
 
         etapa = await PedidoService._load_etapa_with_pedidos(db, pedido.etapa_id)
         if etapa:
@@ -286,6 +288,7 @@ class PedidoService:
             )
 
         pedido.estado = EstadoPedido.COMPLETADO
+        pedido.fecha_completado = datetime.now(timezone.utc)
 
         etapa = await PedidoService._load_etapa_with_pedidos(db, pedido.etapa_id)
         if etapa:

@@ -72,7 +72,14 @@ class Proyecto(Base):
         onupdate=func.now(),
         nullable=False,
     )
+    # State transition timestamps
+    fecha_en_ejecucion: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
     fecha_completitud: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fecha_finalizado: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
 

@@ -268,6 +268,7 @@ class ProyectoService:
 
         # All etapas financed, advance project and etapas
         db_proyecto.estado = EstadoProyecto.en_ejecucion.value
+        db_proyecto.fecha_en_ejecucion = datetime.now(timezone.utc)
         # Transition etapas to esperando_ejecucion (awaiting manual start)
         for etapa in db_proyecto.etapas:
             if etapa.estado != EstadoEtapa.completada:
@@ -343,7 +344,7 @@ class ProyectoService:
             )
 
         db_proyecto.estado = EstadoProyecto.finalizado.value
-        db_proyecto.fecha_completitud = datetime.now(timezone.utc)
+        db_proyecto.fecha_finalizado = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(db_proyecto)
 

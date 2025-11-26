@@ -3,11 +3,13 @@
 import logging
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps.auth import get_current_user
 from app.db.session import get_db
+from app.models.proyecto import Proyecto
 from app.models.user import User
 from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail
 from app.schemas.metrics import (
@@ -101,15 +103,19 @@ async def get_project_tracking_metrics(
     - Estado de pedidos (total, completados, pendientes)
     - Estado de observaciones (pendientes, resueltas, vencidas)
     - Indicador de si el proyecto puede ser iniciado
+    - Estado de salud de etapas (en_tiempo, retrasado, completado)
+    - Días restantes hasta vencimiento
 
     **Permisos:**
-    - Todos los usuarios autenticados pueden ver métricas de cualquier proyecto
+    - Todos los usuarios autenticados pueden ver las métricas de cualquier proyecto
+    - Útil para miembros del council y dueños del proyecto
 
     **Casos de uso:**
     - Panel de control de proyecto individual
     - Identificar bloqueos y cuellos de botella
     - Monitorear progreso de etapas
     - Ver estado de observaciones del consejo
+    - Análisis por parte del council
 
     **Ejemplo de respuesta:**
     ```json
@@ -129,7 +135,9 @@ async def get_project_tracking_metrics(
           "pedidos_pendientes": 1,
           "progreso_porcentaje": 66.67,
           "dias_planificados": 60,
-          "dias_transcurridos": 15
+          "dias_transcurridos": 15,
+          "estado_salud": "en_tiempo",
+          "dias_restantes": 20
         }
       ],
       "total_pedidos": 3,
@@ -146,6 +154,18 @@ async def get_project_tracking_metrics(
     logger.info(
         f"User {current_user.id} requesting tracking metrics for project {project_id}"
     )
+
+    # Verify project exists
+    ownership_stmt = select(Proyecto.id).where(Proyecto.id == project_id)
+    result = await db.execute(ownership_stmt)
+    project_exists = result.scalar_one_or_none()
+
+    if not project_exists:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Proyecto with id {project_id} not found",
+        )
+
     metrics = await MetricsService.get_project_tracking(db, project_id)
     logger.info(f"Tracking metrics calculated for project {project_id}")
     return metrics
