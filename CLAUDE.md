@@ -105,7 +105,7 @@ Main project table with metadata and Bonita tracking.
 | provincia | String(100) | NOT NULL | Province/State |
 | ciudad | String(100) | NOT NULL | City |
 | barrio | String(100) | NULLABLE | Neighborhood |
-| estado | EstadoProyecto | NOT NULL, default=en_planificacion | Project status |
+| estado | EstadoProyecto | NOT NULL, default=pendiente | Project status |
 | bonita_case_id | String(100) | NULLABLE | Bonita case ID (set later) |
 | bonita_process_instance_id | Integer | NULLABLE | Bonita process instance ID |
 | created_at | DateTime(TZ) | NOT NULL, auto | Creation timestamp |
@@ -118,7 +118,7 @@ Main project table with metadata and Bonita tracking.
 ---
 
 #### **etapas**
-Project stages/phases with date ranges.
+Project stages/phases with date ranges and Bonita tracking.
 
 | Column | Type | Constraints | Description |
 |--------|------|-------------|-------------|
@@ -128,6 +128,10 @@ Project stages/phases with date ranges.
 | descripcion | Text | NOT NULL | Stage description |
 | fecha_inicio | Date | NOT NULL | Start date |
 | fecha_fin | Date | NOT NULL | End date |
+| estado | EstadoEtapa | NOT NULL, default=pendiente | Stage status |
+| fecha_completitud | DateTime(TZ) | NULLABLE | Completion timestamp |
+| bonita_case_id | String(100) | NULLABLE | Bonita case ID (set by Bonita) |
+| bonita_process_instance_id | Integer | NULLABLE | Bonita process instance ID |
 
 **Relationships:**
 - `proyecto` → Many-to-One with Proyecto
@@ -183,11 +187,9 @@ User-submitted offers to cover specific pedidos.
 - `MEMBER` - Regular member
 
 **EstadoProyecto:**
-- `borrador` - Draft
-- `en_planificacion` - In planning
-- `buscando_financiamiento` - Seeking funding
-- `en_ejecucion` - In execution
-- `completo` - Complete
+- `pendiente` - Created and seeking financing
+- `en_ejecucion` - Project is being executed
+- `finalizado` - Work completed and closed
 
 **TipoPedido:**
 - `economico` - Economic/financial request
@@ -197,8 +199,16 @@ User-submitted offers to cover specific pedidos.
 - `equipamiento` - Equipment request
 
 **EstadoPedido:**
-- `pendiente` - Pedido without accepted oferta
-- `completado` - Pedido with accepted oferta
+- `PENDIENTE` - Pedido without accepted oferta
+- `COMPROMETIDO` - Oferta accepted, awaiting fulfillment
+- `COMPLETADO` - Pedido fulfilled
+
+**EstadoEtapa:**
+- `pendiente` - Awaiting funding
+- `financiada` - All pedidos comprometido/completado
+- `esperando_ejecucion` - All pedidos financed, awaiting manual start
+- `en_ejecucion` - Stage is in execution
+- `completada` - Stage finished
 
 **EstadoOferta:**
 - `pendiente` - Pending review

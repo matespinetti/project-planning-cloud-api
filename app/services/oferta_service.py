@@ -56,13 +56,24 @@ class OfertaService:
                        f"Ofertas can only be submitted for pedidos in 'PENDIENTE' state.",
             )
 
+        # Prevent duplicate offers from the same user on the same pedido
+        existing_oferta_stmt = select(Oferta.id).where(
+            Oferta.pedido_id == pedido_id, Oferta.user_id == user.id
+        )
+        existing_oferta_result = await db.execute(existing_oferta_stmt)
+        if existing_oferta_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You have already submitted an oferta for this pedido.",
+            )
+
         # Create oferta
         db_oferta = Oferta(
             pedido_id=pedido_id,
             user_id=user.id,
             descripcion=oferta_data.descripcion,
             monto_ofrecido=oferta_data.monto_ofrecido,
-            estado=EstadoOferta.PENDIENTE,
+            estado=EstadoOferta.pendiente,
         )
 
         db.add(db_oferta)
@@ -152,7 +163,7 @@ class OfertaService:
         await OfertaService._verify_project_ownership(db, oferta, user)
 
         # Check if oferta is already accepted or rejected
-        if oferta.estado != EstadoOferta.PENDIENTE:
+        if oferta.estado != EstadoOferta.pendiente:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Oferta is already {oferta.estado.value}",
@@ -175,20 +186,20 @@ class OfertaService:
             )
 
         # Accept the oferta
-        oferta.estado = EstadoOferta.ACEPTADA
+        oferta.estado = EstadoOferta.aceptada
 
         # Auto-reject all other pending ofertas for the same pedido
         stmt_other_ofertas = (
             select(Oferta)
             .where(Oferta.pedido_id == oferta.pedido_id)
             .where(Oferta.id != oferta.id)  # Exclude the accepted one
-            .where(Oferta.estado == EstadoOferta.PENDIENTE)
+            .where(Oferta.estado == EstadoOferta.pendiente)
         )
         result = await db.execute(stmt_other_ofertas)
         other_ofertas = result.scalars().all()
 
         for other_oferta in other_ofertas:
-            other_oferta.estado = EstadoOferta.RECHAZADA
+            other_oferta.estado = EstadoOferta.rechazada
             logger.info(
                 f"Auto-rejecting oferta {other_oferta.id} because oferta {oferta_id} "
                 f"was accepted for pedido {oferta.pedido_id}"
@@ -222,14 +233,14 @@ class OfertaService:
         await OfertaService._verify_project_ownership(db, oferta, user)
 
         # Check if oferta is already accepted or rejected
-        if oferta.estado != EstadoOferta.PENDIENTE:
+        if oferta.estado != EstadoOferta.pendiente:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Oferta is already {oferta.estado.value}",
             )
 
         # Reject the oferta
-        oferta.estado = EstadoOferta.RECHAZADA
+        oferta.estado = EstadoOferta.rechazada
         await db.commit()
         await db.refresh(oferta)
 
@@ -266,7 +277,7 @@ class OfertaService:
             )
 
         # Check if oferta is in ACEPTADA state
-        if oferta.estado != EstadoOferta.ACEPTADA:
+        if oferta.estado != EstadoOferta.aceptada:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail=f"Oferta must be in aceptada state to confirm realization. Current state: {oferta.estado.value}",
@@ -329,7 +340,7 @@ class OfertaService:
         stmt = (
             select(Oferta)
             .where(Oferta.user_id == user.id)
-            .where(Oferta.estado == EstadoOferta.ACEPTADA)
+            .where(Oferta.estado == EstadoOferta.aceptada)
             .options(joinedload(Oferta.pedido), joinedload(Oferta.user))
             .order_by(Oferta.updated_at.desc())
         )
@@ -351,8 +362,157 @@ class OfertaService:
         return list(result.unique().scalars().all())
 
     @staticmethod
+    async def get_all_user_ofertas(
+        db: AsyncSession,
+        user: User,
+        estado_oferta_filter: Optional[str] = None,
+    ) -> List[Oferta]:
+        """
+        Get all ofertas created by the current user (all states).
+        Optionally filter by oferta estado (pendiente, aceptada, rechazada).
+        """
+        # Build query for all ofertas belonging to the user
+        # Eager load pedido → etapa → proyecto to avoid lazy loading issues in async context
+        stmt = (
+            select(Oferta)
+            .where(Oferta.user_id == user.id)
+            .options(
+                joinedload(Oferta.pedido)
+                    .joinedload(Pedido.etapa)
+                    .joinedload(Etapa.proyecto),
+                joinedload(Oferta.user)
+            )
+            .order_by(Oferta.updated_at.desc())
+        )
+
+        # Apply oferta estado filter if provided
+        if estado_oferta_filter:
+            # Validate estado_oferta_filter
+            valid_estados = ["pendiente", "aceptada", "rechazada"]
+            if estado_oferta_filter not in valid_estados:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid estado_oferta filter. Must be one of: {valid_estados}",
+                )
+
+            # Filter by oferta estado
+            stmt = stmt.where(Oferta.estado == EstadoOferta(estado_oferta_filter))
+
+        result = await db.execute(stmt)
+        return list(result.unique().scalars().all())
+
+
+    @staticmethod
+    async def get_oferta_by_id(db: AsyncSession, oferta_id: UUID) -> Optional[Oferta]:
+        """Get an oferta by ID with relationships loaded."""
+        stmt = (
+            select(Oferta)
+            .where(Oferta.id == oferta_id)
+            .options(
+                joinedload(Oferta.user),
+                joinedload(Oferta.pedido)
+                .joinedload(Pedido.etapa)
+                .joinedload(Etapa.proyecto),
+            )
+        )
+        result = await db.execute(stmt)
+        return result.unique().scalar_one_or_none()
+
+    @staticmethod
+    async def update(
+        db: AsyncSession,
+        oferta_id: UUID,
+        oferta_data: "OfertaUpdate",
+        user: User,
+    ) -> Oferta:
+        """
+        Update an oferta (descripcion and/or monto).
+        Only the user who created the oferta can update it.
+        Ofertas can only be updated if they are in PENDIENTE state.
+        """
+        from app.schemas.oferta import OfertaUpdate
+
+        # Get oferta
+        oferta = await OfertaService.get_oferta_by_id(db, oferta_id)
+        if not oferta:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Oferta with id {oferta_id} not found",
+            )
+
+        # Verify user is the creator
+        if oferta.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the user who created the oferta can update it",
+            )
+
+        # Validate that oferta is in PENDIENTE state
+        if oferta.estado != EstadoOferta.pendiente:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot update oferta in state '{oferta.estado.value}'. "
+                       "Ofertas can only be updated while in PENDIENTE state.",
+            )
+
+        # Update fields that are provided
+        if oferta_data.descripcion is not None:
+            oferta.descripcion = oferta_data.descripcion
+        if oferta_data.monto_ofrecido is not None:
+            oferta.monto_ofrecido = oferta_data.monto_ofrecido
+
+        await db.commit()
+        await db.refresh(oferta)
+
+        logger.info(f"Oferta {oferta_id} updated by user {user.id}")
+        return oferta
+
+    @staticmethod
+    async def delete_oferta(db: AsyncSession, oferta_id: UUID, user: User) -> bool:
+        """
+        Delete an oferta.
+        Only the user who created the oferta can delete it.
+        Ofertas can only be deleted if they are in PENDIENTE state.
+        """
+        # Get oferta
+        oferta = await OfertaService.get_oferta_by_id(db, oferta_id)
+        if not oferta:
+            return False
+
+        # Verify user is the creator
+        if oferta.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the user who created the oferta can delete it",
+            )
+
+        # Validate that oferta is in PENDIENTE state
+        if oferta.estado != EstadoOferta.pendiente:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot delete oferta in state '{oferta.estado.value}'. "
+                       "Ofertas can only be deleted while in PENDIENTE state.",
+            )
+
+        # Delete the oferta
+        await db.delete(oferta)
+        await db.commit()
+
+        logger.info(f"Oferta {oferta_id} deleted by user {user.id}")
+        return True
+
+    @staticmethod
     async def _verify_project_ownership(db: AsyncSession, oferta: Oferta, user: User) -> None:
         """Verify that the user owns the project that contains this oferta."""
+        # Bonita system calls are pre-authorized through the proxy API, so skip
+        # project ownership validation when requests carry the X-API-Key header.
+        if getattr(user, "is_bonita_actor", False):
+            logger.info(
+                "Skipping ownership verification for oferta %s because request comes from Bonita",
+                oferta.id,
+            )
+            return
+
         # Get pedido -> etapa -> proyecto chain
         pedido = await db.get(Pedido, oferta.pedido_id)
         if not pedido:

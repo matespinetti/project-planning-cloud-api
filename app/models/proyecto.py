@@ -9,21 +9,20 @@ from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-
-import enum as py_enum
+from app.models.enums import StrEnum
 
 if TYPE_CHECKING:
     from app.models.user import User
     from app.models.etapa import Etapa
+    from app.models.observacion import Observacion
 
 
-class EstadoProyecto(str, py_enum.Enum):
-    """Project status enumeration."""
-    BORRADOR = "borrador"
-    EN_PLANIFICACION = "en_planificacion"
-    BUSCANDO_FINANCIAMIENTO = "buscando_financiamiento"
-    EN_EJECUCION = "en_ejecucion"
-    COMPLETO = "completo"
+class EstadoProyecto(StrEnum):
+    """Project status enumeration (pending → executing → finished)."""
+
+    pendiente = "pendiente"
+    en_ejecucion = "en_ejecucion"
+    finalizado = "finalizado"
 
 
 class Proyecto(Base):
@@ -54,7 +53,7 @@ class Proyecto(Base):
 
     # Status
     estado: Mapped[EstadoProyecto] = mapped_column(
-        Enum(EstadoProyecto), nullable=False, default=EstadoProyecto.EN_PLANIFICACION
+        Enum(EstadoProyecto), nullable=False, default=EstadoProyecto.pendiente
     )
 
     # Bonita BPM Integration (can be null initially)
@@ -73,9 +72,22 @@ class Proyecto(Base):
         onupdate=func.now(),
         nullable=False,
     )
+    # State transition timestamps
+    fecha_en_ejecucion: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fecha_completitud: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    fecha_finalizado: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Relationships
     user: Mapped["User"] = relationship(back_populates="proyectos")
     etapas: Mapped[List["Etapa"]] = relationship(
         back_populates="proyecto", cascade="all, delete-orphan", lazy="joined"
+    )
+    observaciones: Mapped[List["Observacion"]] = relationship(
+        back_populates="proyecto", cascade="all, delete-orphan"
     )

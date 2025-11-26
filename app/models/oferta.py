@@ -4,23 +4,23 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Optional
 from uuid import UUID, uuid4
 
-import enum as py_enum
 from sqlalchemy import DateTime, Enum, Float, ForeignKey, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.enums import StrEnum
 
 if TYPE_CHECKING:
     from app.models.pedido import Pedido
     from app.models.user import User
 
 
-class EstadoOferta(str, py_enum.Enum):
+class EstadoOferta(StrEnum):
     """Offer status enumeration."""
-    PENDIENTE = "pendiente"
-    ACEPTADA = "aceptada"
-    RECHAZADA = "rechazada"
+    pendiente = "pendiente"
+    aceptada = "aceptada"
+    rechazada = "rechazada"
 
 
 class Oferta(Base):
@@ -45,7 +45,7 @@ class Oferta(Base):
     monto_ofrecido: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     descripcion: Mapped[str] = mapped_column(Text, nullable=False)
     estado: Mapped[EstadoOferta] = mapped_column(
-        Enum(EstadoOferta), nullable=False, default=EstadoOferta.PENDIENTE
+        Enum(EstadoOferta), nullable=False, default=EstadoOferta.pendiente
     )
 
     # Timestamps (auto-managed)

@@ -22,7 +22,6 @@ class ProyectoCreate(BaseModel):
     provincia: str = Field(..., max_length=100)
     ciudad: str = Field(..., max_length=100)
     barrio: Optional[str] = Field(None, max_length=100)
-    estado: str = Field(default="en_planificacion")
     bonita_case_id: Optional[str] = Field(None, max_length=100)
     bonita_process_instance_id: Optional[int] = None
     etapas: List[EtapaCreate] = Field(..., min_length=1)
@@ -54,6 +53,21 @@ class ProyectoUpdate(BaseModel):
     bonita_process_instance_id: Optional[int] = None
 
 
+class ProyectoPut(BaseModel):
+    """Schema for complete update (PUT) - all core fields required."""
+
+    titulo: str = Field(..., min_length=5, max_length=200)
+    descripcion: str = Field(..., min_length=20)
+    tipo: str = Field(..., min_length=1, max_length=100)
+    pais: str = Field(..., max_length=100)
+    provincia: str = Field(..., max_length=100)
+    ciudad: str = Field(..., max_length=100)
+    barrio: Optional[str] = Field(None, max_length=100)
+    estado: Optional[str] = None
+    bonita_case_id: Optional[str] = Field(None, max_length=100)
+    bonita_process_instance_id: Optional[int] = None
+
+
 class ProyectoResponse(BaseModel):
     """Schema for proyecto response with all nested data."""
 
@@ -74,3 +88,60 @@ class ProyectoResponse(BaseModel):
     created_at: datetime
     updated_at: datetime
     etapas: List[EtapaResponse] = []
+
+
+class PedidoPendienteInfo(BaseModel):
+    """Schema for incomplete pedido information in error responses."""
+
+    pedido_id: UUID
+    etapa_nombre: str
+    tipo: str
+    estado: str
+    descripcion: str
+
+
+class ProyectoStartResponse(BaseModel):
+    """Schema for successful project start response."""
+
+    id: UUID
+    titulo: str
+    estado: str
+    message: str
+
+
+class ProyectoCompleteResponse(BaseModel):
+    """Schema for successful project completion response."""
+
+    id: UUID
+    titulo: str
+    estado: str
+    message: str
+
+
+class ProyectoListItem(BaseModel):
+    """Lightweight project summary for list view (no nested relationships)."""
+
+    model_config = {"from_attributes": True}
+
+    id: UUID
+    user_id: UUID
+    titulo: str
+    descripcion: str
+    tipo: str
+    pais: str
+    provincia: str
+    ciudad: str
+    barrio: Optional[str] = None
+    estado: str
+    created_at: datetime
+    updated_at: datetime
+
+
+class PaginatedProyectoResponse(BaseModel):
+    """Paginated response with metadata."""
+
+    items: List[ProyectoListItem]
+    total: int
+    page: int
+    page_size: int
+    total_pages: int

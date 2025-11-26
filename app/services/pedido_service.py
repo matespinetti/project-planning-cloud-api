@@ -1,25 +1,38 @@
 """Pedido service - Business logic for pedido operations."""
 
 import logging
+from datetime import datetime, timezone
 from typing import List, Optional
 from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.etapa import Etapa
 from app.models.pedido import EstadoPedido, Pedido
 from app.models.proyecto import Proyecto
 from app.models.user import User
-from app.schemas.pedido import PedidoCreate
+from app.schemas.pedido import PedidoCreate, PedidoUpdate
+from app.services.state_machine import refresh_etapa_state
 
 logger = logging.getLogger(__name__)
 
 
 class PedidoService:
     """Service for pedido-related operations."""
+
+    @staticmethod
+    async def _load_etapa_with_pedidos(db: AsyncSession, etapa_id: UUID) -> Optional[Etapa]:
+        """Helper to fetch an etapa with its pedidos eager-loaded."""
+        stmt = (
+            select(Etapa)
+            .where(Etapa.id == etapa_id)
+            .options(joinedload(Etapa.pedidos))
+        )
+        result = await db.execute(stmt)
+        return result.unique().scalar_one_or_none()
 
     @staticmethod
     async def create_for_etapa(
@@ -74,6 +87,12 @@ class PedidoService:
         )
 
         db.add(db_pedido)
+        await db.flush()
+
+        etapa_with_pedidos = await PedidoService._load_etapa_with_pedidos(db, etapa_id)
+        if etapa_with_pedidos:
+            refresh_etapa_state(etapa_with_pedidos)
+
         await db.commit()
         await db.refresh(db_pedido)
 
@@ -86,10 +105,81 @@ class PedidoService:
         return await db.get(Pedido, pedido_id)
 
     @staticmethod
+    async def update(
+        db: AsyncSession,
+        pedido_id: UUID,
+        pedido_data: PedidoUpdate,
+        user: User,
+    ) -> Pedido:
+        """
+        Update a pedido.
+        Only the project owner can update pedidos.
+        Pedidos can only be updated if they are in PENDIENTE state.
+        """
+        # Get pedido
+        pedido = await db.get(Pedido, pedido_id)
+        if not pedido:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Pedido with id {pedido_id} not found",
+            )
+
+        # Get etapa to verify proyecto ownership
+        etapa = await db.get(Etapa, pedido.etapa_id)
+        if not etapa:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Etapa not found",
+            )
+
+        # Get proyecto to verify ownership
+        proyecto = await db.get(Proyecto, etapa.proyecto_id)
+        if not proyecto:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Proyecto not found",
+            )
+
+        if proyecto.user_id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Only the project owner can update pedidos",
+            )
+
+        # Validate that pedido is in PENDIENTE state (can only update pending pedidos)
+        if pedido.estado != EstadoPedido.PENDIENTE:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Cannot update pedido in state '{pedido.estado.value}'. "
+                       "Pedidos can only be updated while in PENDIENTE state.",
+            )
+
+        # Update fields that are provided
+        if pedido_data.tipo is not None:
+            pedido.tipo = pedido_data.tipo
+        if pedido_data.descripcion is not None:
+            pedido.descripcion = pedido_data.descripcion
+        if pedido_data.monto is not None:
+            pedido.monto = pedido_data.monto
+        if pedido_data.moneda is not None:
+            pedido.moneda = pedido_data.moneda
+        if pedido_data.cantidad is not None:
+            pedido.cantidad = pedido_data.cantidad
+        if pedido_data.unidad is not None:
+            pedido.unidad = pedido_data.unidad
+
+        await db.commit()
+        await db.refresh(pedido)
+
+        logger.info(f"Pedido {pedido_id} updated by user {user.id}")
+        return pedido
+
+    @staticmethod
     async def list_by_proyecto(
         db: AsyncSession,
         proyecto_id: UUID,
         estado_filter: Optional[EstadoPedido] = None,
+        current_user_id: Optional[UUID] = None,
     ) -> List[Pedido]:
         """
         List all pedidos for a proyecto, optionally filtered by estado.
@@ -108,7 +198,7 @@ class PedidoService:
             select(Pedido)
             .join(Etapa, Pedido.etapa_id == Etapa.id)
             .where(Etapa.proyecto_id == proyecto_id)
-            .options(joinedload(Pedido.etapa))
+            .options(joinedload(Pedido.etapa), selectinload(Pedido.ofertas))
             .order_by(Pedido.etapa_id, Pedido.tipo)
         )
 
@@ -117,7 +207,15 @@ class PedidoService:
             stmt = stmt.where(Pedido.estado == estado_filter)
 
         result = await db.execute(stmt)
-        return list(result.unique().scalars().all())
+        pedidos = list(result.unique().scalars().all())
+
+        if current_user_id:
+            for pedido in pedidos:
+                pedido.ya_oferto = any(
+                    oferta.user_id == current_user_id for oferta in pedido.ofertas
+                )
+
+        return pedidos
 
     @staticmethod
     async def delete(db: AsyncSession, pedido_id: UUID, user: User) -> bool:
@@ -173,6 +271,12 @@ class PedidoService:
             )
 
         pedido.estado = EstadoPedido.COMPROMETIDO
+        pedido.fecha_comprometido = datetime.now(timezone.utc)
+
+        etapa = await PedidoService._load_etapa_with_pedidos(db, pedido.etapa_id)
+        if etapa:
+            refresh_etapa_state(etapa)
+
         await db.commit()
         await db.refresh(pedido)
 
@@ -193,6 +297,12 @@ class PedidoService:
             )
 
         pedido.estado = EstadoPedido.COMPLETADO
+        pedido.fecha_completado = datetime.now(timezone.utc)
+
+        etapa = await PedidoService._load_etapa_with_pedidos(db, pedido.etapa_id)
+        if etapa:
+            refresh_etapa_state(etapa)
+
         await db.commit()
         await db.refresh(pedido)
 

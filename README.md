@@ -107,7 +107,7 @@ Create a new project with nested etapas and pedidos.
   "provincia": "Buenos Aires",
   "ciudad": "La Plata",
   "barrio": "Centro",
-  "estado": "en_planificacion",
+  "estado": "pendiente",
   "bonita_case_id": null,
   "bonita_process_instance_id": null,
   "etapas": [
@@ -265,7 +265,7 @@ docker-compose down -v
 - `id` (UUID, PK)
 - `titulo`, `descripcion`, `tipo`
 - `pais`, `provincia`, `ciudad`, `barrio`
-- `estado` (enum: borrador, en_planificacion, buscando_financiamiento, en_ejecucion, completo)
+- `estado` (enum: pendiente, en_ejecucion, finalizado)
 - `bonita_case_id`, `bonita_process_instance_id`
 - `created_at`, `updated_at` (auto-managed)
 
@@ -274,6 +274,7 @@ docker-compose down -v
 - `proyecto_id` (UUID, FK → proyectos.id, CASCADE DELETE)
 - `nombre`, `descripcion`
 - `fecha_inicio`, `fecha_fin`
+- `estado` (enum: pendiente, financiada, en_ejecucion, completada)
 
 **pedidos** - Coverage requests
 - `id` (UUID, PK)

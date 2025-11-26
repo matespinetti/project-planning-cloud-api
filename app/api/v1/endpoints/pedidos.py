@@ -12,7 +12,7 @@ from app.db.session import get_db
 from app.models.pedido import EstadoPedido
 from app.models.user import User
 from app.schemas.errors import OWNERSHIP_RESPONSES, ErrorDetail, ValidationErrorDetail
-from app.schemas.pedido import PedidoCreate, PedidoResponse
+from app.schemas.pedido import PedidoCreate, PedidoUpdate, PedidoResponse
 from app.services.pedido_service import PedidoService
 
 logger = logging.getLogger(__name__)
@@ -137,10 +137,11 @@ async def list_project_pedidos(
     project_id: UUID,
     estado: Optional[str] = Query(
         None,
-        description="Filter by estado (pendiente or completado)",
-        pattern="^(pendiente|completado)$",
+        description="Filter by estado (PENDIENTE, COMPROMETIDO, or COMPLETADO)",
+        pattern="^(PENDIENTE|COMPROMETIDO|COMPLETADO)$",
     ),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> List[PedidoResponse]:
     """
     Listar todos los pedidos de un proyecto específico, opcionalmente filtrados por estado.
@@ -151,9 +152,11 @@ async def list_project_pedidos(
     # Convert estado string to enum if provided
     estado_filter = None
     if estado:
-        estado_filter = EstadoPedido.PENDIENTE if estado == "pendiente" else EstadoPedido.COMPLETADO
+        estado_filter = EstadoPedido(estado)
 
-    pedidos = await PedidoService.list_by_proyecto(db, project_id, estado_filter)
+    pedidos = await PedidoService.list_by_proyecto(
+        db, project_id, estado_filter, current_user.id
+    )
 
     return [PedidoResponse.model_validate(pedido) for pedido in pedidos]
 
@@ -206,3 +209,106 @@ async def delete_pedido(
         )
 
     logger.info(f"Successfully deleted pedido {pedido_id}")
+
+
+@router.get(
+    "/pedidos/{pedido_id}",
+    response_model=PedidoResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Pedido does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Pedido with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+    },
+)
+async def get_pedido(
+    pedido_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PedidoResponse:
+    """
+    Obtener detalles de un pedido específico.
+    """
+    logger.info(f"User {current_user.id} fetching pedido {pedido_id}")
+
+    pedido = await PedidoService.get_by_id(db, pedido_id)
+
+    if not pedido:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail=f"Pedido with id {pedido_id} not found",
+        )
+
+    return PedidoResponse.model_validate(pedido)
+
+
+@router.patch(
+    "/pedidos/{pedido_id}",
+    response_model=PedidoResponse,
+    responses={
+        401: OWNERSHIP_RESPONSES[401],
+        403: {
+            "model": ErrorDetail,
+            "description": "Forbidden - User is not the owner of the project",
+            "content": {
+                "application/json": {
+                    "example": {"detail": "Only the project owner can update pedidos"}
+                }
+            },
+        },
+        404: {
+            "model": ErrorDetail,
+            "description": "Not Found - Pedido does not exist",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Pedido with id 123e4567-e89b-12d3-a456-426614174000 not found"
+                    }
+                }
+            },
+        },
+        400: {
+            "model": ErrorDetail,
+            "description": "Bad Request - Pedido cannot be updated in current state",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "Cannot update pedido in state 'COMPROMETIDO'. Pedidos can only be updated while in PENDIENTE state."
+                    }
+                }
+            },
+        },
+    },
+)
+async def update_pedido(
+    pedido_id: UUID,
+    pedido_data: PedidoUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+) -> PedidoResponse:
+    """
+    Actualizar un pedido.
+    Solo el dueño del proyecto puede actualizar pedidos.
+    Los pedidos solo pueden actualizarse si están en estado PENDIENTE.
+
+    Campos que se pueden actualizar:
+    - tipo: Tipo de pedido (economico, materiales, mano_obra, transporte, equipamiento)
+    - descripcion: Descripción del pedido
+    - monto: Monto del presupuesto
+    - moneda: Código de moneda (ej: ARS, USD)
+    - cantidad: Cantidad requerida
+    - unidad: Unidad de medida
+    """
+    logger.info(f"User {current_user.id} updating pedido {pedido_id}")
+
+    pedido = await PedidoService.update(db, pedido_id, pedido_data, current_user)
+
+    return PedidoResponse.model_validate(pedido)
