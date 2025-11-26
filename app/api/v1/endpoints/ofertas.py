@@ -46,6 +46,17 @@ router = APIRouter(dependencies=[Depends(get_current_user)])
                 }
             },
         },
+        409: {
+            "model": ErrorDetail,
+            "description": "Conflict - Duplicate oferta for this pedido",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "detail": "You have already submitted an oferta for this pedido."
+                    }
+                }
+            },
+        },
         422: {
             "model": ValidationErrorDetail,
             "description": "Validation Error - Invalid oferta data",

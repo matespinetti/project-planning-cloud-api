@@ -141,6 +141,7 @@ async def list_project_pedidos(
         pattern="^(PENDIENTE|COMPROMETIDO|COMPLETADO)$",
     ),
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> List[PedidoResponse]:
     """
     Listar todos los pedidos de un proyecto específico, opcionalmente filtrados por estado.
@@ -153,7 +154,9 @@ async def list_project_pedidos(
     if estado:
         estado_filter = EstadoPedido(estado)
 
-    pedidos = await PedidoService.list_by_proyecto(db, project_id, estado_filter)
+    pedidos = await PedidoService.list_by_proyecto(
+        db, project_id, estado_filter, current_user.id
+    )
 
     return [PedidoResponse.model_validate(pedido) for pedido in pedidos]
 

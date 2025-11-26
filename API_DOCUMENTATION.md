@@ -685,6 +685,7 @@ Lista proyectos con paginación, filtros combinables y ordenamiento dinámico. R
 | `search`     | string  | Búsqueda texto libre en `titulo` y `descripcion` (case-insensitive).                         |
 | `user_id`    | UUID    | Filtra por dueño específico. Ignorado si `my_projects=true`.                                 |
 | `my_projects`| bool    | Si es `true`, solo retorna proyectos del usuario autenticado (sobrescribe `user_id`).        |
+| `exclude_my_projects` | bool | Si es `true`, excluye los proyectos del usuario autenticado (ignorado si `my_projects=true`). |
 
 #### Query Parameters (Ordenamiento)
 
@@ -707,6 +708,9 @@ GET /api/v1/projects?estado=en_ejecucion&provincia=Buenos Aires
 
 # Búsqueda por texto y paginada
 GET /api/v1/projects?search=huerta&page=2&page_size=10&sort_by=titulo&sort_order=asc
+
+# Explorar proyectos de otros usuarios
+GET /api/v1/projects?estado=pendiente&exclude_my_projects=true
 ```
 
 #### Response Exitoso (200)
@@ -756,6 +760,7 @@ GET /api/v1/projects?search=huerta&page=2&page_size=10&sort_by=titulo&sort_order
 | ------ | ------------------------- | -------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
 | `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                                   | Proporciona un access_token válido en el header          |
 | `422`  | Parámetros inválidos      | `{"detail": "Invalid estado value: borrador. Must be one of: pendiente, en_ejecucion, finalizado"}`                        | Usa valores permitidos para `estado`, `sort_by`, etc.    |
+| `422`  | Filtros incompatibles     | `{"detail": "my_projects and exclude_my_projects cannot both be true"}`                                                    | Usa solo uno de los flags `my_projects` / `exclude_my_projects`. |
 
 #### Instrucciones para Probar
 
@@ -1644,6 +1649,7 @@ Obtiene todos los pedidos de un proyecto con filtrado opcional por estado.
 **Ruta:** `/api/v1/projects/{project_id}/pedidos`
 **Autenticación:** Requerida (Bearer Token)
 **Código de Respuesta:** `200 OK`
+**Notas:** El campo `ya_oferto` indica si el usuario autenticado ya envió una oferta para ese pedido.
 
 #### Path Parameters
 
@@ -1678,7 +1684,8 @@ GET /api/v1/projects/123e4567-e89b-12d3-a456-426614174000/pedidos?estado=COMPLET
 		"monto": 15000.0,
 		"moneda": "ARS",
 		"cantidad": null,
-		"unidad": null
+		"unidad": null,
+		"ya_oferto": false
 	},
 	{
 		"id": "423e4567-e89b-12d3-a456-426614174334",
@@ -1689,7 +1696,8 @@ GET /api/v1/projects/123e4567-e89b-12d3-a456-426614174000/pedidos?estado=COMPLET
 		"monto": null,
 		"moneda": null,
 		"cantidad": 5,
-		"unidad": "jornadas"
+		"unidad": "jornadas",
+		"ya_oferto": true
 	}
 ]
 ```
@@ -1832,6 +1840,7 @@ Crea una nueva oferta para un pedido específico. Un usuario propone sus servici
 | ------ | ------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                 | Proporciona un access_token válido     |
 | `404`  | Pedido no encontrado      | `{"detail": "Pedido with id ... not found"}`                                                             | Verifica que el pedido_id sea correcto |
+| `409`  | Oferta duplicada          | `{"detail": "You have already submitted an oferta for this pedido."}`                                    | Evita enviar más de una oferta por pedido |
 | `422`  | Validación fallida        | `{"detail": [{"loc": ["body", "descripcion"], "msg": "field required", "type": "value_error.missing"}]}` | La descripción es requerida            |
 
 #### Instrucciones para Probar
@@ -4522,6 +4531,7 @@ Esta sección describe **todos los códigos de error posibles** que la API puede
 | ------ | ------------------------- | -------------------------------------------------------------------------------------------------------- |
 | `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                 |
 | `404`  | Pedido no encontrado      | `{"detail": "Pedido with id ... not found"}`                                                             |
+| `409`  | Oferta duplicada          | `{"detail": "You have already submitted an oferta for this pedido."}`                                    |
 | `422`  | Validación Pydantic       | `{"detail": [{"loc": ["body", "descripcion"], "msg": "field required", "type": "value_error.missing"}]}` |
 
 ##### GET /api/v1/pedidos/{pedido_id}/ofertas

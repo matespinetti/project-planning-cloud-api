@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.etapa import Etapa, EstadoEtapa
 from app.models.pedido import Pedido
@@ -79,17 +79,32 @@ class ProyectoService:
         return db_proyecto
 
     @staticmethod
-    async def get_by_id(db: AsyncSession, proyecto_id: UUID) -> Optional[Proyecto]:
+    async def get_by_id(
+        db: AsyncSession, proyecto_id: UUID, current_user_id: Optional[UUID] = None
+    ) -> Optional[Proyecto]:
         """
         Get a proyecto by ID with all nested data (eager loading).
         """
         stmt = (
             select(Proyecto)
             .where(Proyecto.id == proyecto_id)
-            .options(joinedload(Proyecto.etapas).joinedload(Etapa.pedidos))
+            .options(
+                joinedload(Proyecto.etapas)
+                .selectinload(Etapa.pedidos)
+                .selectinload(Pedido.ofertas)
+            )
         )
         result = await db.execute(stmt)
-        return result.unique().scalar_one_or_none()
+        proyecto = result.unique().scalar_one_or_none()
+
+        if proyecto and current_user_id:
+            for etapa in proyecto.etapas:
+                for pedido in etapa.pedidos:
+                    pedido.ya_oferto = any(
+                        oferta.user_id == current_user_id for oferta in pedido.ofertas
+                    )
+
+        return proyecto
 
     @staticmethod
     async def update(
@@ -371,6 +386,7 @@ class ProyectoService:
         ciudad: Optional[str] = None,
         search: Optional[str] = None,
         user_id: Optional[UUID] = None,
+        exclude_user_id: Optional[UUID] = None,
         sort_by: str = "created_at",
         sort_order: str = "desc",
     ) -> tuple[List[Proyecto], int]:
@@ -426,6 +442,9 @@ class ProyectoService:
         if user_id:
             stmt = stmt.where(Proyecto.user_id == user_id)
 
+        if exclude_user_id:
+            stmt = stmt.where(Proyecto.user_id != exclude_user_id)
+
         # Get total count BEFORE pagination
         count_stmt = select(func.count()).select_from(stmt.subquery())
         count_result = await db.execute(count_stmt)
@@ -448,7 +467,8 @@ class ProyectoService:
 
         logger.info(
             f"Listed {len(projects)} projects (page {page}, total={total}) with filters: "
-            f"estado={estado}, tipo={tipo}, pais={pais}, search={search}, user_id={user_id}"
+            f"estado={estado}, tipo={tipo}, pais={pais}, search={search}, user_id={user_id}, "
+            f"exclude_user_id={exclude_user_id}"
         )
 
         return projects, total

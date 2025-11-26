@@ -56,6 +56,17 @@ class OfertaService:
                        f"Ofertas can only be submitted for pedidos in 'PENDIENTE' state.",
             )
 
+        # Prevent duplicate offers from the same user on the same pedido
+        existing_oferta_stmt = select(Oferta.id).where(
+            Oferta.pedido_id == pedido_id, Oferta.user_id == user.id
+        )
+        existing_oferta_result = await db.execute(existing_oferta_stmt)
+        if existing_oferta_result.scalar_one_or_none():
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="You have already submitted an oferta for this pedido.",
+            )
+
         # Create oferta
         db_oferta = Oferta(
             pedido_id=pedido_id,

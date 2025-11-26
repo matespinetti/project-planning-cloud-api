@@ -8,7 +8,7 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.orm import joinedload
+from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.etapa import Etapa
 from app.models.pedido import EstadoPedido, Pedido
@@ -179,6 +179,7 @@ class PedidoService:
         db: AsyncSession,
         proyecto_id: UUID,
         estado_filter: Optional[EstadoPedido] = None,
+        current_user_id: Optional[UUID] = None,
     ) -> List[Pedido]:
         """
         List all pedidos for a proyecto, optionally filtered by estado.
@@ -197,7 +198,7 @@ class PedidoService:
             select(Pedido)
             .join(Etapa, Pedido.etapa_id == Etapa.id)
             .where(Etapa.proyecto_id == proyecto_id)
-            .options(joinedload(Pedido.etapa))
+            .options(joinedload(Pedido.etapa), selectinload(Pedido.ofertas))
             .order_by(Pedido.etapa_id, Pedido.tipo)
         )
 
@@ -206,7 +207,15 @@ class PedidoService:
             stmt = stmt.where(Pedido.estado == estado_filter)
 
         result = await db.execute(stmt)
-        return list(result.unique().scalars().all())
+        pedidos = list(result.unique().scalars().all())
+
+        if current_user_id:
+            for pedido in pedidos:
+                pedido.ya_oferto = any(
+                    oferta.user_id == current_user_id for oferta in pedido.ofertas
+                )
+
+        return pedidos
 
     @staticmethod
     async def delete(db: AsyncSession, pedido_id: UUID, user: User) -> bool:

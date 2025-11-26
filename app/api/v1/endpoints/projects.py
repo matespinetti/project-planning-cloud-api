@@ -121,13 +121,16 @@ async def create_project(
 async def get_project(
     project_id: UUID,
     db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ) -> ProyectoResponse:
     """
     Obtener un proyecto por ID con todos los datos anidados.
     Cualquier usuario autenticado puede ver proyectos.
     """
     logger.info(f"Fetching proyecto {project_id}")
-    db_proyecto = await ProyectoService.get_by_id(db, project_id)
+    db_proyecto = await ProyectoService.get_by_id(
+        db, proyecto_id=project_id, current_user_id=current_user.id
+    )
 
     if not db_proyecto:
         logger.warning(f"Proyecto {project_id} not found")
@@ -471,6 +474,10 @@ async def list_projects(
     search: Optional[str] = Query(None, description="Search in title and description (case-insensitive)"),
     user_id: Optional[UUID] = Query(None, description="Filter by project owner (user ID)"),
     my_projects: bool = Query(False, description="Only show current user's projects (overrides user_id)"),
+    exclude_my_projects: bool = Query(
+        False,
+        description="Exclude projects owned by the current user (ignored when my_projects=true)",
+    ),
     # Sorting
     sort_by: str = Query(
         "created_at",
@@ -537,11 +544,19 @@ async def list_projects(
     """
     logger.info(
         f"User {current_user.id} listing projects (page={page}, page_size={page_size}, "
-        f"filters: estado={estado}, tipo={tipo}, search={search}, my_projects={my_projects})"
+        f"filters: estado={estado}, tipo={tipo}, search={search}, my_projects={my_projects}, "
+        f"exclude_my_projects={exclude_my_projects})"
     )
+
+    if my_projects and exclude_my_projects:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="my_projects and exclude_my_projects cannot both be true",
+        )
 
     # Override user_id if my_projects is True
     filter_user_id = current_user.id if my_projects else user_id
+    exclude_user_id = current_user.id if exclude_my_projects else None
 
     # Convert estado string to enum if provided
     estado_filter = None
@@ -566,6 +581,7 @@ async def list_projects(
         ciudad=ciudad,
         search=search,
         user_id=filter_user_id,
+        exclude_user_id=exclude_user_id,
         sort_by=sort_by,
         sort_order=sort_order,
     )

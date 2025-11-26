@@ -62,3 +62,4 @@ class PedidoResponse(BaseModel):
     moneda: Optional[str] = None
     cantidad: Optional[int] = None
     unidad: Optional[str] = None
+    ya_oferto: bool = False
