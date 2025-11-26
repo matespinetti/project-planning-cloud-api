@@ -26,6 +26,7 @@
 17. [Flujo Completo de Ejemplo](#flujo-completo-de-ejemplo)
 18. [Códigos de Error](#códigos-de-error)
 19. [Instrucciones para Pruebas](#instrucciones-para-pruebas)
+20. [Endpoint de Seed](#endpoint-de-seed)
 
 ---
 
@@ -4982,6 +4983,40 @@ Tiempo total del ciclo: 5 días, 8 horas, 45 minutos
 ### 10. Validación de Datos
 
 Todos los timestamps incluyen información de timezone (UTC) y se almacenan como `DateTime(timezone=True)` en PostgreSQL para máxima precisión.
+
+
+---
+
+## Endpoint de Seed
+
+Endpoint utilitario para poblar la base de datos con los datos de ejemplo provistos en `seed_data.py`. **No requiere autenticación**.
+
+**Método:** `POST`  
+**Ruta:** `/api/v1/seed`  
+**Autenticación:** No requerida  
+**Código de Respuesta:** `200 OK`
+
+#### Ejemplo de Uso
+
+```
+POST /api/v1/seed
+```
+
+**Response 200**
+
+```json
+{
+	"detail": "Database seeded successfully"
+}
+```
+
+#### Errores Posibles
+
+| Código | Descripción            | Ejemplo                                                 | Solución                  |
+| ------ | ---------------------- | ------------------------------------------------------- | ------------------------- |
+| `500`  | Error al correr seed   | `{"detail": "Internal Server Error"}`                   | Revisar logs del servidor |
+
+> Advertencia: al ser público y sin autenticación, evita exponer este endpoint en entornos productivos sin protección adicional.
 
 ---
 

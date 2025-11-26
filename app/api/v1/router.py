@@ -2,7 +2,7 @@
 
 from fastapi import APIRouter
 
-from app.api.v1.endpoints import auth, etapas, metrics, observaciones, ofertas, pedidos, projects, users
+from app.api.v1.endpoints import auth, etapas, metrics, observaciones, ofertas, pedidos, projects, seed, users
 
 api_router = APIRouter()
 
@@ -15,3 +15,4 @@ api_router.include_router(pedidos.router, tags=["pedidos"])
 api_router.include_router(ofertas.router, tags=["ofertas"])
 api_router.include_router(observaciones.router, tags=["observaciones"])
 api_router.include_router(metrics.router, tags=["metrics"])
+api_router.include_router(seed.router, tags=["seed"])
