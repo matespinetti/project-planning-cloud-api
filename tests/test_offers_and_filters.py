@@ -88,6 +88,19 @@ async def test_create_oferta_rejects_duplicate_for_same_user():
 
 
 @pytest.mark.asyncio
+async def test_create_oferta_allows_if_previous_not_pending():
+    """A previous oferta that is not pending should not block creation."""
+    pedido = SimpleNamespace(id=uuid4(), estado=EstadoPedido.PENDIENTE)
+    # Simulate no pending offer found
+    session = _DummySession(pedido=pedido, existing_offer_id=None)
+    oferta_data = OfertaCreate(descripcion="descripcion valida", monto_ofrecido=50.0)
+    user = SimpleNamespace(id=uuid4())
+
+    # Should not raise
+    await OfertaService.create(session, pedido.id, oferta_data, user)
+
+
+@pytest.mark.asyncio
 async def test_list_projects_rejects_conflicting_flags():
     db = AsyncMock()
     current_user = SimpleNamespace(id=uuid4())

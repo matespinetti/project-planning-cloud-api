@@ -1841,7 +1841,7 @@ Crea una nueva oferta para un pedido específico. Un usuario propone sus servici
 | ------ | ------------------------- | -------------------------------------------------------------------------------------------------------- | -------------------------------------- |
 | `401`  | Token inválido o faltante | `{"detail": "Invalid or expired token"}`                                                                 | Proporciona un access_token válido     |
 | `404`  | Pedido no encontrado      | `{"detail": "Pedido with id ... not found"}`                                                             | Verifica que el pedido_id sea correcto |
-| `409`  | Oferta duplicada          | `{"detail": "You have already submitted an oferta for this pedido."}`                                    | Evita enviar más de una oferta por pedido |
+| `409`  | Oferta pendiente duplicada| `{"detail": "You have already submitted an oferta for this pedido."}`                                    | No envíes más de una oferta pendiente para el mismo pedido |
 | `422`  | Validación fallida        | `{"detail": [{"loc": ["body", "descripcion"], "msg": "field required", "type": "value_error.missing"}]}` | La descripción es requerida            |
 
 #### Instrucciones para Probar

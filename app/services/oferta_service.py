@@ -56,9 +56,11 @@ class OfertaService:
                        f"Ofertas can only be submitted for pedidos in 'PENDIENTE' state.",
             )
 
-        # Prevent duplicate offers from the same user on the same pedido
+        # Prevent duplicate pending offers from the same user on the same pedido
         existing_oferta_stmt = select(Oferta.id).where(
-            Oferta.pedido_id == pedido_id, Oferta.user_id == user.id
+            Oferta.pedido_id == pedido_id,
+            Oferta.user_id == user.id,
+            Oferta.estado == EstadoOferta.pendiente,
         )
         existing_oferta_result = await db.execute(existing_oferta_stmt)
         if existing_oferta_result.scalar_one_or_none():
