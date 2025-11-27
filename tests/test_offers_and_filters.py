@@ -8,9 +8,11 @@ import pytest
 from fastapi import HTTPException, status
 
 from app.api.v1.endpoints.projects import list_projects
+from app.models.oferta import EstadoOferta
 from app.models.pedido import EstadoPedido
 from app.schemas.oferta import OfertaCreate
 from app.services.oferta_service import OfertaService
+from app.services.pedido_service import PedidoService
 
 
 class _DummyResult:
@@ -43,6 +45,33 @@ class _DummySession:
 
     async def refresh(self, _obj):
         return None
+
+
+class _ListResult:
+    def __init__(self, values):
+        self._values = values
+
+    def unique(self):
+        return self
+
+    def scalars(self):
+        return self
+
+    def all(self):
+        return self._values
+
+
+class _ListSession:
+    """Session stub to return a predefined list of pedidos."""
+
+    def __init__(self, pedidos):
+        self._pedidos = pedidos
+
+    async def get(self, _model, _id):
+        return SimpleNamespace(id=_id)
+
+    async def execute(self, _stmt):
+        return _ListResult(self._pedidos)
 
 
 @pytest.mark.asyncio
@@ -83,3 +112,25 @@ async def test_list_projects_rejects_conflicting_flags():
         )
 
     assert excinfo.value.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+
+
+@pytest.mark.asyncio
+async def test_ya_oferto_only_counts_pending_offers():
+    user_id = uuid4()
+    pending_offer = SimpleNamespace(user_id=user_id, estado=EstadoOferta.pendiente)
+    rejected_offer = SimpleNamespace(user_id=user_id, estado=EstadoOferta.rechazada)
+    other_user_offer = SimpleNamespace(user_id=uuid4(), estado=EstadoOferta.pendiente)
+
+    pedido_with_pending = SimpleNamespace(ofertas=[pending_offer])
+    pedido_with_rejected = SimpleNamespace(ofertas=[rejected_offer])
+    pedido_other_user = SimpleNamespace(ofertas=[other_user_offer])
+
+    session = _ListSession([pedido_with_pending, pedido_with_rejected, pedido_other_user])
+
+    pedidos = await PedidoService.list_by_proyecto(
+        session, uuid4(), estado_filter=None, current_user_id=user_id
+    )
+
+    assert pedidos[0].ya_oferto is True
+    assert pedidos[1].ya_oferto is False
+    assert pedidos[2].ya_oferto is False

@@ -1650,7 +1650,7 @@ Obtiene todos los pedidos de un proyecto con filtrado opcional por estado.
 **Ruta:** `/api/v1/projects/{project_id}/pedidos`
 **Autenticación:** Requerida (Bearer Token)
 **Código de Respuesta:** `200 OK`
-**Notas:** El campo `ya_oferto` indica si el usuario autenticado ya envió una oferta para ese pedido.
+**Notas:** El campo `ya_oferto` indica si el usuario autenticado tiene una oferta **pendiente** para ese pedido.
 
 #### Path Parameters
 
