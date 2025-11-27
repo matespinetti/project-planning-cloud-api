@@ -47,6 +47,9 @@ class Oferta(Base):
     estado: Mapped[EstadoOferta] = mapped_column(
         Enum(EstadoOferta), nullable=False, default=EstadoOferta.pendiente
     )
+    fecha_resolucion: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     # Timestamps (auto-managed)
     created_at: Mapped[datetime] = mapped_column(

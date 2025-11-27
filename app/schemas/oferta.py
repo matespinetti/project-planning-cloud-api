@@ -32,6 +32,7 @@ class OfertaResponse(BaseModel):
     descripcion: str
     monto_ofrecido: Optional[float] = None
     estado: str
+    fecha_resolucion: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -47,6 +48,7 @@ class OfertaWithUserResponse(BaseModel):
     descripcion: str
     monto_ofrecido: Optional[float] = None
     estado: str
+    fecha_resolucion: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -68,6 +70,7 @@ class OfertaWithPedidoResponse(BaseModel):
     descripcion: str
     monto_ofrecido: Optional[float] = None
     estado: str
+    fecha_resolucion: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 
@@ -175,6 +178,7 @@ class OfertaDetailedResponse(BaseModel):
     descripcion: str
     monto_ofrecido: Optional[float] = None
     estado: str
+    fecha_resolucion: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
 

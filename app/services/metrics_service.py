@@ -293,6 +293,29 @@ class MetricsService:
             (pedidos_con_ofertas / total_pedidos * 100) if total_pedidos > 0 else 0.0
         )
 
+        # Average response time: from pedido creation to first oferta
+        first_oferta_subquery = (
+            select(
+                Pedido.id.label("pedido_id"),
+                Pedido.created_at.label("pedido_created_at"),
+                func.min(Oferta.created_at).label("first_oferta_at"),
+            )
+            .join(Oferta, Oferta.pedido_id == Pedido.id)
+            .group_by(Pedido.id, Pedido.created_at)
+            .subquery()
+        )
+        avg_respuesta_stmt = select(
+            func.avg(
+                func.extract(
+                    "epoch",
+                    first_oferta_subquery.c.first_oferta_at
+                    - first_oferta_subquery.c.pedido_created_at,
+                )
+                / 86400
+            )
+        )
+        avg_respuesta = (await db.execute(avg_respuesta_stmt)).scalar_one()
+
         # Total ofertas and acceptance rate
         total_ofertas_stmt = select(func.count(Oferta.id))
         total_ofertas = (await db.execute(total_ofertas_stmt)).scalar_one()
@@ -374,7 +397,7 @@ class MetricsService:
             pedidos_con_ofertas=pedidos_con_ofertas,
             cobertura_ofertas_porcentaje=round(cobertura, 2),
             tasa_aceptacion_porcentaje=round(tasa_aceptacion, 2),
-            tiempo_respuesta_promedio_dias=None,
+            tiempo_respuesta_promedio_dias=round(avg_respuesta, 2) if avg_respuesta else None,
             top_contribuidores=top_contribuidores,
             pedidos_por_tipo=pedidos_por_tipo,
             cobertura_por_tipo=cobertura_por_tipo,

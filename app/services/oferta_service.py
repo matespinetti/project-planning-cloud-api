@@ -189,6 +189,7 @@ class OfertaService:
 
         # Accept the oferta
         oferta.estado = EstadoOferta.aceptada
+        oferta.fecha_resolucion = datetime.now(timezone.utc)
 
         # Auto-reject all other pending ofertas for the same pedido
         stmt_other_ofertas = (
@@ -202,6 +203,7 @@ class OfertaService:
 
         for other_oferta in other_ofertas:
             other_oferta.estado = EstadoOferta.rechazada
+            other_oferta.fecha_resolucion = datetime.now(timezone.utc)
             logger.info(
                 f"Auto-rejecting oferta {other_oferta.id} because oferta {oferta_id} "
                 f"was accepted for pedido {oferta.pedido_id}"
@@ -243,6 +245,7 @@ class OfertaService:
 
         # Reject the oferta
         oferta.estado = EstadoOferta.rechazada
+        oferta.fecha_resolucion = datetime.now(timezone.utc)
         await db.commit()
         await db.refresh(oferta)
 
