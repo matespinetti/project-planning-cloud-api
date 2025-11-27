@@ -276,6 +276,7 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             descripcion="Materiales de huerta de calidad premium",
             created_at=datetime(2025, 7, 28, 10, 0, tzinfo=timezone.utc),
             fecha_resolucion=datetime(2025, 7, 30, 9, 0, tzinfo=timezone.utc),
+            monto_ofrecido=118000.0,
         ),
         Oferta(
             id=uuid4(),
@@ -285,6 +286,7 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             descripcion="Equipo de 2 operarios especializados",
             created_at=datetime(2025, 7, 28, 11, 0, tzinfo=timezone.utc),
             fecha_resolucion=datetime(2025, 7, 31, 10, 0, tzinfo=timezone.utc),
+            monto_ofrecido=95000.0,
         ),
     ]
     all_ofertas.extend(ofertas_a)
@@ -395,6 +397,7 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             descripcion="Equipo de obreros experimentados",
             created_at=datetime(2025, 8, 28, 11, 0, tzinfo=timezone.utc),
             fecha_resolucion=datetime(2025, 8, 31, 9, 0, tzinfo=timezone.utc),
+            monto_ofrecido=180000.0,
         ),
         Oferta(
             id=uuid4(),
@@ -404,6 +407,7 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             descripcion="Materiales de construcción certificados",
             created_at=datetime(2025, 9, 3, 10, 0, tzinfo=timezone.utc),
             fecha_resolucion=datetime(2025, 9, 6, 9, 0, tzinfo=timezone.utc),
+            monto_ofrecido=520000.0,
         ),
         Oferta(
             id=uuid4(),
@@ -511,6 +515,7 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             descripcion="Computadoras e instalación profesional",
             created_at=datetime(2025, 11, 6, 10, 0, tzinfo=timezone.utc),
             fecha_resolucion=datetime(2025, 11, 8, 9, 0, tzinfo=timezone.utc),
+            monto_ofrecido=250000.0,
         ),
         Oferta(
             id=uuid4(),
@@ -520,6 +525,7 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             descripcion="Colección diversa de libros",
             created_at=datetime(2025, 11, 6, 11, 0, tzinfo=timezone.utc),
             fecha_resolucion=datetime(2025, 11, 9, 9, 0, tzinfo=timezone.utc),
+            monto_ofrecido=175000.0,
         ),
     ]
     all_ofertas.extend(ofertas_c)
