@@ -274,6 +274,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             user_id=users["member2"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Materiales de huerta de calidad premium",
+            created_at=datetime(2025, 7, 28, 10, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 7, 30, 9, 0, tzinfo=timezone.utc),
         ),
         Oferta(
             id=uuid4(),
@@ -281,6 +283,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             user_id=users["member1"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Equipo de 2 operarios especializados",
+            created_at=datetime(2025, 7, 28, 11, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 7, 31, 10, 0, tzinfo=timezone.utc),
         ),
     ]
     all_ofertas.extend(ofertas_a)
@@ -380,6 +384,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             monto_ofrecido=145000.0,
             estado=EstadoOferta.aceptada,
             descripcion="Materiales de cimentación de calidad",
+            created_at=datetime(2025, 8, 28, 9, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 8, 30, 8, 0, tzinfo=timezone.utc),
         ),
         Oferta(
             id=uuid4(),
@@ -387,6 +393,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             user_id=users["member2"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Equipo de obreros experimentados",
+            created_at=datetime(2025, 8, 28, 11, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 8, 31, 9, 0, tzinfo=timezone.utc),
         ),
         Oferta(
             id=uuid4(),
@@ -394,6 +402,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             user_id=users["member1"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Materiales de construcción certificados",
+            created_at=datetime(2025, 9, 3, 10, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 9, 6, 9, 0, tzinfo=timezone.utc),
         ),
         Oferta(
             id=uuid4(),
@@ -402,6 +412,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             monto_ofrecido=195000.0,
             estado=EstadoOferta.aceptada,
             descripcion="Cocina industrial con instalación",
+            created_at=datetime(2025, 9, 3, 12, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 9, 6, 10, 0, tzinfo=timezone.utc),
         ),
     ]
     all_ofertas.extend(ofertas_b)
@@ -488,6 +500,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             monto_ofrecido=98000.0,
             estado=EstadoOferta.aceptada,
             descripcion="Reparaciones de calidad",
+            created_at=datetime(2025, 10, 28, 9, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 10, 30, 8, 0, tzinfo=timezone.utc),
         ),
         Oferta(
             id=uuid4(),
@@ -495,6 +509,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             user_id=users["member1"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Computadoras e instalación profesional",
+            created_at=datetime(2025, 11, 6, 10, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 11, 8, 9, 0, tzinfo=timezone.utc),
         ),
         Oferta(
             id=uuid4(),
@@ -502,6 +518,8 @@ async def create_etapas_pedidos_ofertas(db: AsyncSession, projects: list, users:
             user_id=users["member2"].id,
             estado=EstadoOferta.aceptada,
             descripcion="Colección diversa de libros",
+            created_at=datetime(2025, 11, 6, 11, 0, tzinfo=timezone.utc),
+            fecha_resolucion=datetime(2025, 11, 9, 9, 0, tzinfo=timezone.utc),
         ),
     ]
     all_ofertas.extend(ofertas_c)

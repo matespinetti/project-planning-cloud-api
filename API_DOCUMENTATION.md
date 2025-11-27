@@ -1830,6 +1830,7 @@ Crea una nueva oferta para un pedido específico. Un usuario propone sus servici
 	"descripcion": "Tengo disponibilidad inmediata para realizar trabajos de pintura con materiales de primera calidad. Garantizo buen acabado y entrega a tiempo.",
 	"monto_ofrecido": 14500.0,
 	"estado": "pendiente",
+	"fecha_resolucion": null,
 	"created_at": "2024-10-22T15:00:00+00:00",
 	"updated_at": "2024-10-22T15:00:00+00:00"
 }
@@ -4907,9 +4908,12 @@ if project_owner_id != current_user.id:
 ### 5. Métricas Mejoradas
 
 #### **`tiempo_respuesta_promedio_dias` (CommitmentMetrics)**
-- **Antes:** Siempre `None` (Pedido no tenía timestamps)
-- **Ahora:** Se puede calcular como `oferta.created_at - pedido.created_at`
-- **Nota:** Este campo sigue siendo `Optional[float]` porque depende de si hay ofertas con datos
+- **Antes:** Siempre `None` (no se calculaba)
+- **Ahora:** `avg(first_oferta.created_at - pedido.created_at)` usando la primera oferta de cada pedido
+- **Nota:** Sigue siendo `Optional[float]` si no hay ofertas en BD
+
+#### **Campo nuevo en Ofertas**
+- `fecha_resolucion`: fecha/hora en que la oferta fue aceptada o rechazada (UTC). Se setea en los endpoints de aceptación/rechazo y queda `null` mientras está `pendiente`.
 
 #### **`tiempo_inicio_promedio_dias` (PerformanceMetrics)**
 - **Antes:** Calculado aproximadamente usando `updated_at`
