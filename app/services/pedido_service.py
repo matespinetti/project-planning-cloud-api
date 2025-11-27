@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import joinedload, selectinload
 
 from app.models.etapa import Etapa
+from app.models.oferta import EstadoOferta
 from app.models.pedido import EstadoPedido, Pedido
 from app.models.proyecto import Proyecto
 from app.models.user import User
@@ -212,7 +213,9 @@ class PedidoService:
         if current_user_id:
             for pedido in pedidos:
                 pedido.ya_oferto = any(
-                    oferta.user_id == current_user_id for oferta in pedido.ofertas
+                    oferta.user_id == current_user_id
+                    and oferta.estado == EstadoOferta.pendiente
+                    for oferta in pedido.ofertas
                 )
 
         return pedidos
